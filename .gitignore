@@ -1,0 +1,9 @@
+node_modules/
+build/
+.DS_Store
+.idea/*
+.env
+.vscode
+
+*.py
+migrate.js
