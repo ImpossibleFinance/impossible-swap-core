@@ -16,8 +16,8 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
 
     uint256 public constant override MINIMUM_LIQUIDITY = 10**3;
     bytes4 private constant SELECTOR = bytes4(keccak256(bytes('transfer(address,uint256)')));
-    uint256 private constant FEE = 201; // 1/201=0.4795% fee collected from LP if (feeOn)
-    // Consider making fee updatable 
+    
+
     uint256 private constant THIRTY_MINS = 600; // 30 mins in 3 second blocks for BSC  - update if not BSC
     // TODO: fix this so that there's a testing period that's 50 blocks instead.
     uint256 private constant ONE_DAY = 50; // 50 for testing, will be 24*60*60/3 = 28800 in production.
@@ -49,6 +49,9 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
 
 //  TODO: Confirm modifiers
     uint256 private feesAccrued;
+    // TODO: confirm that these are the right modifiers when making fee updatable 
+    uint256 public withdrawalFeeRatio = 201; // 1/201=0.4795% fee collected from LP if (feeOn)
+    
 
     // Delay sets the duration for boost changes over time
     uint256 public override delay;
@@ -178,7 +181,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
 
 // Current fees are limited to be less than 10% globally under all circumstances
     function updateTradeFees(uint16 _fee) external onlyGovernance {
-        require(_fee <= 1000, 'IF: INVALID_FEE'); // capped at 10%  
+        require(_fee <= 1000, 'IF: INVALID_feeRatio'); // capped at 10%  
         emit updatedTradeFees(tradeFee, _fee);
         // fee is uint so can't be negative
         tradeFee = _fee;
@@ -313,15 +316,15 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
             require(amount0 > 0 && amount1 > 0, 'IF: INSUFFICIENT_LIQUIDITY_BURNED');
 
             if (feeOn) {
-                uint256 _FEE = FEE;
-                amount0 -= amount0.div(_FEE);
-                amount1 -= amount1.div(_FEE);
+                uint256 _feeRatio = withdrawalFeeRatio;
+                amount0 -= amount0.div(_feeRatio);
+                amount1 -= amount1.div(_feeRatio);
                 // Check that this doesn't break scope or stack limit
                 //  1/201 is about 0.4975%
                 // Takes the 0.4975% Fee of LP tokens and adds allowance to claim for the IImpossibleFactory feeTo Address
-                feesAccrued.add(amount0.div(_FEE));
-                // _safeTransfer(address(this), IImpossibleFactory(factory).feeTo(), liquidity.div(_FEE));
-                _burn(address(this), liquidity.sub(liquidity.div(_FEE)));
+                feesAccrued.add(amount0.div(_feeRatio));
+                // _safeTransfer(address(this), IImpossibleFactory(factory).feeTo(), liquidity.div(_feeRatio));
+                _burn(address(this), liquidity.sub(liquidity.div(_feeRatio)));
             } else {
                 _burn(address(this), liquidity);
             }
