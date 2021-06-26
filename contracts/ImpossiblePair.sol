@@ -172,7 +172,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         require(block.number >= endBlockChange, 'IF: BOOST_ALREADY_CHANGING');  // TODO: Check if comment can be shortened
         require(newBoost0 == 1 && newBoost1 == 1, 'IF: INVALID_BOOST');
         isXybk = false;
-        boost0 = 1;
+        boost0 = 1; // boost of 1 is standard to reduce xyb=k to xy=k formula
         boost1 = 1;
         ratioStart = 0;
         ratioEnd = 100;
@@ -386,7 +386,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
                     require(balance0.mul(ratio) > balance1.mul(100 - ratio), 'IF: EXCEED_LOWER_STOP');
                 }
             }
-            uint256 _tradeFee = uint256(tradeFee); // Gas savings?
+            uint256 _tradeFee = uint256(tradeFee); // TODO: is there any Gas savings here?
             uint256 balance0Adjusted = balance0.mul(10000).sub(amount0In.mul(_tradeFee)); // tradeFee amt of basis pts
             uint256 balance1Adjusted = balance1.mul(10000).sub(amount1In.mul(_tradeFee)); // tradeFee amt of basis pts
             _isXybk
