@@ -166,7 +166,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     // Removing isXybk state might save gas on xybk swaps. Then, isXybk is a function that returns calcBoost() == (1, 1)
     function makeUni() external onlyGovernance nonReentrant {
         require(isXybk, 'IF: IS_ALREADY_UNI');
-        require(block.number >= endBlockChange, 'IF: BOOST_ALREADY_CHANGING');
+        require(block.number >= endBlockChange, 'IF: BOOST_ALREADY_CHANGING');  // TODO: Check if comment can be shortened
         require(newBoost0 == 1 && newBoost1 == 1, 'IF: INVALID_BOOST');
         isXybk = false;
         boost0 = 1;
@@ -176,8 +176,9 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         emit changeInvariant(isXybk, ratioStart, ratioEnd);
     }
 
+// Current fees are limited to be less than 10% globally under all circumstances
     function updateTradeFees(uint16 _fee) external onlyGovernance {
-        require(_fee <= 1000, 'IF: INVALID_FEE'); // capped at 10%
+        require(_fee <= 1000, 'IF: INVALID_FEE'); // capped at 10%  
         emit updatedTradeFees(tradeFee, _fee);
         // fee is uint so can't be negative
         tradeFee = _fee;
@@ -192,6 +193,8 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     }
 
     // Updates lower/upper hardstops for a pool
+    // Can also act as emergency stop for the pair; in case something happens to any pairs 
+    // that requires a pause, admin multisig can set _ratioEnd < _ratioStart to ensure all trades fail
     function updateHardstops(uint8 _ratioStart, uint8 _ratioEnd) external onlyGovernance nonReentrant {
         require(isXybk, 'IF: IS_CURRENTLY_UNI');
         require(0 <= _ratioStart && _ratioEnd <= 100, 'IF: INVALID_RATIO');
@@ -228,15 +231,15 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         router = _router;
         token0 = _token0;
         token1 = _token1;
-        boost0 = 1;
+        boost0 = 1; // Default boosts are visible
         boost1 = 1;
         newBoost0 = 1;
         newBoost1 = 1;
-        tradeFee = 30; // 30 basis points
+        tradeFee = 30; // 30 basis points on initialization as default
         delay = ONE_DAY;
     }
 
-    // update reserves and, on the first call per block, price accumulators
+    // Update reserves and, on the first call per block, price accumulators
     // PriceCumulativeLast calculations will cost too much gas for Impossibleswap invariant - scrap feature
     function _update(uint256 balance0, uint256 balance1) private {
         reserve0 = uint128(balance0);
@@ -314,6 +317,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
                 amount0 -= amount0.div(_FEE);
                 amount1 -= amount1.div(_FEE);
                 // Check that this doesn't break scope or stack limit
+                //  1/201 is about 0.4975%
                 // Takes the 0.4975% Fee of LP tokens and adds allowance to claim for the IImpossibleFactory feeTo Address
                 feesAccrued.add(amount0.div(_FEE));
                 // _safeTransfer(address(this), IImpossibleFactory(factory).feeTo(), liquidity.div(_FEE));
@@ -428,10 +432,10 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
 //  Can be called by anyone 
 // TODO: Confirm if this should be called by anyone versus if we should limit to only fee address itself should call 
 // In theory, there could be other addresses that call this in a cron job every say 2 weeks.
-    function claimFees() external override nonReentrant {
+    function claimFees() external nonReentrant {
         uint256 transferAmount = feesAccrued;
         feesAccrued = 0; //Resets amount owed to claim to zero first
-        _safeTransfer(address(this), IImpossibleFactory(factory).feeTo(), feesAccrued); //Tranfers owed debt to fee collection address
+        _safeTransfer(address(this), IImpossibleFactory(factory).feeTo(), transferAmount); //Tranfers owed debt to fee collection address
     }
 
     // force balances to match reserves
