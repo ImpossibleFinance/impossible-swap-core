@@ -54,7 +54,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     }
 
     modifier onlyGovernance() {
-        //require(msg.sender == IImpossibleFactory(factory).governance(), 'IF: FORBIDDEN'); // NOTE: Comment out when running tests to allow calls to makeXybk
+        require(msg.sender == IImpossibleFactory(factory).governance(), 'IF: FORBIDDEN'); // NOTE: Comment out when running tests to allow calls to makeXybk
         _;
     }
 
@@ -139,7 +139,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         uint32 _boost1
     ) external onlyGovernance nonReentrant {
         require(!isXybk, 'IF: IS_ALREADY_XYBK');
-        require(0 <= _ratioStart && _ratioStart < _ratioEnd && _ratioEnd <= 100, 'IF: IF: INVALID_RATIO');
+        require(0 <= _ratioStart && _ratioEnd <= 100, 'IF: IF: INVALID_RATIO');
         require(_boost0 >= 1 && _boost1 >= 1 && _boost0 <= 1000000 && _boost1 <= 1000000, 'IF: INVALID_BOOST');
         require(block.number >= endBlockChange, 'IF: BOOST_ALREADY_CHANGING');
         (uint256 _reserve0, uint256 _reserve1) = getReserves();
@@ -189,7 +189,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     // Updates lower/upper hardstops for a pool
     function updateHardstops(uint8 _ratioStart, uint8 _ratioEnd) external onlyGovernance nonReentrant {
         require(isXybk, 'IF: IS_CURRENTLY_UNI');
-        require(0 <= _ratioStart && _ratioStart < _ratioEnd && _ratioEnd <= 100, 'IF: INVALID_RATIO');
+        require(0 <= _ratioStart && _ratioEnd <= 100, 'IF: INVALID_RATIO');
         ratioStart = _ratioStart;
         ratioEnd = _ratioEnd;
         emit updatedHardstops(_ratioStart, _ratioEnd);
@@ -330,34 +330,6 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         emit Burn(msg.sender, amount0, amount1, to);
     }
 
-    // This swap function can only be called from the Impossible router which has implemented checks
-    function cheapSwap(
-        uint256 amount0Out,
-        uint256 amount1Out,
-        address to,
-        bytes calldata data
-    ) external override onlyIFRouter nonReentrant {
-        if (amount0Out > 0) _safeTransfer(token0, to, amount0Out); // optimistically transfer tokens
-        if (amount1Out > 0) _safeTransfer(token1, to, amount1Out); // optimistically transfer tokens
-        if (data.length > 0) IImpossibleCallee(to).ImpossibleCall(msg.sender, amount0Out, amount1Out, data);
-        uint256 balance0 = IERC20(token0).balanceOf(address(this));
-        uint256 balance1 = IERC20(token1).balanceOf(address(this));
-        if (isXybk) {
-            bool side = balance0 >= balance1;
-            uint256 ratio = side ? ratioStart : ratioEnd;
-            if (side && ratio > 0) {
-                require(balance1.mul(ratio) < balance0.mul(100 - ratio), 'IF: EXCEED_UPPER_STOP');
-            } else if (!side && ratio < 100) {
-                require(balance0.mul(ratio) > balance1.mul(100 - ratio), 'IF: EXCEED_LOWER_STOP');
-            }
-        }
-        (uint256 _reserve0, uint256 _reserve1) = getReserves(); // gas savings
-        uint256 amount0In = balance0 > _reserve0 - amount0Out ? balance0 - (_reserve0 - amount0Out) : 0;
-        uint256 amount1In = balance1 > _reserve1 - amount1Out ? balance1 - (_reserve1 - amount1Out) : 0;
-        _update(balance0, balance1);
-        emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
-    }
-
     // this low-level function should be called from a contract which performs important safety checks
     // Without safety checks, calling swap directly will throw failure at bounds
     function swap(
@@ -365,7 +337,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         uint256 amount1Out,
         address to,
         bytes calldata data
-    ) external override nonReentrant {
+    ) external override onlyIFRouter nonReentrant {
         require(amount0Out > 0 || amount1Out > 0, 'IF: INSUFFICIENT_OUTPUT_AMOUNT');
         (uint256 _reserve0, uint256 _reserve1) = getReserves(); // gas savings
         require(amount0Out < _reserve0 && amount1Out < _reserve1, 'IF: INSUFFICIENT_LIQUIDITY');

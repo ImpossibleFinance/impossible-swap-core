@@ -1,26 +1,22 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity =0.7.6;
+pragma experimental ABIEncoderV2;
 
-import './interfaces/IImpossiblePair.sol';
 import './interfaces/IImpossibleFactory.sol';
 import '@uniswap/lib/contracts/libraries/TransferHelper.sol';
+import './libraries/ReentrancyGuard.sol';
 
+import './interfaces/IImpossibleRouter02.sol';
 import './libraries/ImpossibleLibrary.sol';
-import './interfaces/IImpossibleRouter01.sol';
+import './libraries/SafeMath.sol';
 import './interfaces/IERC20.sol';
 import './interfaces/IWETH.sol';
 
-contract ImpossibleRouter01 is IImpossibleRouter01 {
+contract ImpossibleRouter01 is IImpossibleRouter01, ReentrancyGuard {
+    using SafeMath for uint256;
+
     address public immutable override factory;
     address public immutable override WETH;
-    uint8 private locked;
-
-    modifier lock() {
-        require(locked == 0, 'IF: LOCKED');
-        locked = 1;
-        _;
-        locked = 0;
-    }
 
     modifier ensure(uint256 deadline) {
         require(deadline >= block.timestamp, 'ImpossibleRouter: EXPIRED');
@@ -45,7 +41,7 @@ contract ImpossibleRouter01 is IImpossibleRouter01 {
         uint256 amountBDesired,
         uint256 amountAMin,
         uint256 amountBMin
-    ) private returns (uint256 amountA, uint256 amountB) {
+    ) internal virtual returns (uint256 amountA, uint256 amountB) {
         // create the pair if it doesn't exist yet
         if (IImpossibleFactory(factory).getPair(tokenA, tokenB) == address(0)) {
             IImpossibleFactory(factory).createPair(tokenA, tokenB);
@@ -79,8 +75,10 @@ contract ImpossibleRouter01 is IImpossibleRouter01 {
         uint256 deadline
     )
         external
+        virtual
         override
         ensure(deadline)
+        nonReentrant
         returns (
             uint256 amountA,
             uint256 amountB,
@@ -105,8 +103,10 @@ contract ImpossibleRouter01 is IImpossibleRouter01 {
     )
         external
         payable
+        virtual
         override
         ensure(deadline)
+        nonReentrant
         returns (
             uint256 amountToken,
             uint256 amountETH,
@@ -131,6 +131,24 @@ contract ImpossibleRouter01 is IImpossibleRouter01 {
 
     // Unchanged from uni
     // **** REMOVE LIQUIDITY ****
+    function _removeLiquidity(
+        address tokenA,
+        address tokenB,
+        uint256 liquidity,
+        uint256 amountAMin,
+        uint256 amountBMin,
+        address to,
+        uint256 deadline
+    ) private ensure(deadline) returns (uint256 amountA, uint256 amountB) {
+        address pair = ImpossibleLibrary.pairFor(factory, tokenA, tokenB);
+        IImpossiblePair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
+        (uint256 amount0, uint256 amount1) = IImpossiblePair(pair).burn(to);
+        (address token0, ) = ImpossibleLibrary.sortTokens(tokenA, tokenB);
+        (amountA, amountB) = tokenA == token0 ? (amount0, amount1) : (amount1, amount0);
+        require(amountA >= amountAMin, 'ImpossibleRouter: INSUFFICIENT_A_AMOUNT');
+        require(amountB >= amountBMin, 'ImpossibleRouter: INSUFFICIENT_B_AMOUNT');
+    }
+
     function removeLiquidity(
         address tokenA,
         address tokenB,
@@ -139,14 +157,8 @@ contract ImpossibleRouter01 is IImpossibleRouter01 {
         uint256 amountBMin,
         address to,
         uint256 deadline
-    ) public override ensure(deadline) returns (uint256 amountA, uint256 amountB) {
-        address pair = ImpossibleLibrary.pairFor(factory, tokenA, tokenB);
-        IImpossiblePair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
-        (uint256 amount0, uint256 amount1) = IImpossiblePair(pair).burn(to);
-        (address token0, ) = ImpossibleLibrary.sortTokens(tokenA, tokenB);
-        (amountA, amountB) = tokenA == token0 ? (amount0, amount1) : (amount1, amount0);
-        require(amountA >= amountAMin, 'ImpossibleRouter: INSUFFICIENT_A_AMOUNT');
-        require(amountB >= amountBMin, 'ImpossibleRouter: INSUFFICIENT_B_AMOUNT');
+    ) public virtual override ensure(deadline) nonReentrant returns (uint256 amountA, uint256 amountB) {
+        return _removeLiquidity(tokenA, tokenB, liquidity, amountAMin, amountBMin, to, deadline);
     }
 
     // Unchanged from uni
@@ -157,8 +169,8 @@ contract ImpossibleRouter01 is IImpossibleRouter01 {
         uint256 amountETHMin,
         address to,
         uint256 deadline
-    ) public override ensure(deadline) returns (uint256 amountToken, uint256 amountETH) {
-        (amountToken, amountETH) = removeLiquidity(
+    ) public virtual override ensure(deadline) nonReentrant returns (uint256 amountToken, uint256 amountETH) {
+        (amountToken, amountETH) = _removeLiquidity(
             token,
             WETH,
             liquidity,
@@ -185,11 +197,11 @@ contract ImpossibleRouter01 is IImpossibleRouter01 {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external override returns (uint256 amountA, uint256 amountB) {
+    ) external virtual override nonReentrant returns (uint256 amountA, uint256 amountB) {
         address pair = ImpossibleLibrary.pairFor(factory, tokenA, tokenB);
         uint256 value = approveMax ? uint256(-1) : liquidity;
         IImpossiblePair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
-        (amountA, amountB) = removeLiquidity(tokenA, tokenB, liquidity, amountAMin, amountBMin, to, deadline);
+        (amountA, amountB) = _removeLiquidity(tokenA, tokenB, liquidity, amountAMin, amountBMin, to, deadline);
     }
 
     // Unchanged from uni
@@ -204,11 +216,53 @@ contract ImpossibleRouter01 is IImpossibleRouter01 {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) external override returns (uint256 amountToken, uint256 amountETH) {
+    ) external virtual override returns (uint256 amountToken, uint256 amountETH) {
         address pair = ImpossibleLibrary.pairFor(factory, token, WETH);
         uint256 value = approveMax ? uint256(-1) : liquidity;
         IImpossiblePair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
         (amountToken, amountETH) = removeLiquidityETH(token, liquidity, amountTokenMin, amountETHMin, to, deadline);
+    }
+
+    // Unchanged from uni
+    // **** REMOVE LIQUIDITY (supporting fee-on-transfer tokens) ****
+    function removeLiquidityETHSupportingFeeOnTransferTokens(
+        address token,
+        uint256 liquidity,
+        uint256 amountTokenMin,
+        uint256 amountETHMin,
+        address to,
+        uint256 deadline
+    ) public ensure(deadline) nonReentrant returns (uint256 amountETH) {
+        (, amountETH) = _removeLiquidity(token, WETH, liquidity, amountTokenMin, amountETHMin, address(this), deadline);
+        TransferHelper.safeTransfer(token, to, IERC20(token).balanceOf(address(this)));
+        IWETH(WETH).withdraw(amountETH);
+        TransferHelper.safeTransferETH(to, amountETH);
+    }
+
+    // Unchanged from uni
+    function removeLiquidityETHWithPermitSupportingFeeOnTransferTokens(
+        address token,
+        uint256 liquidity,
+        uint256 amountTokenMin,
+        uint256 amountETHMin,
+        address to,
+        uint256 deadline,
+        bool approveMax,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external returns (uint256 amountETH) {
+        address pair = ImpossibleLibrary.pairFor(factory, token, WETH);
+        uint256 value = approveMax ? uint256(-1) : liquidity;
+        IImpossiblePair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
+        amountETH = removeLiquidityETHSupportingFeeOnTransferTokens(
+            token,
+            liquidity,
+            amountTokenMin,
+            amountETHMin,
+            to,
+            deadline
+        );
     }
 
     // Unchanged from uni
@@ -218,7 +272,7 @@ contract ImpossibleRouter01 is IImpossibleRouter01 {
         uint256[] memory amounts,
         address[] memory path,
         address _to
-    ) private {
+    ) internal virtual {
         for (uint256 i; i < path.length - 1; i++) {
             (address input, address output) = (path[i], path[i + 1]);
             (address token0, ) = ImpossibleLibrary.sortTokens(input, output);
@@ -226,7 +280,7 @@ contract ImpossibleRouter01 is IImpossibleRouter01 {
             (uint256 amount0Out, uint256 amount1Out) =
                 input == token0 ? (uint256(0), amountOut) : (amountOut, uint256(0));
             address to = i < path.length - 2 ? ImpossibleLibrary.pairFor(factory, output, path[i + 2]) : _to;
-            IImpossiblePair(ImpossibleLibrary.pairFor(factory, input, output)).cheapSwap(
+            IImpossiblePair(ImpossibleLibrary.pairFor(factory, input, output)).swap(
                 amount0Out,
                 amount1Out,
                 to,
@@ -242,7 +296,7 @@ contract ImpossibleRouter01 is IImpossibleRouter01 {
         address[] calldata path,
         address to,
         uint256 deadline
-    ) external override ensure(deadline) lock returns (uint256[] memory amounts) {
+    ) external virtual override ensure(deadline) nonReentrant returns (uint256[] memory amounts) {
         amounts = ImpossibleLibrary.getAmountsOut(factory, amountIn, path);
         require(amounts[amounts.length - 1] >= amountOutMin, 'ImpossibleRouter: INSUFFICIENT_OUTPUT_AMOUNT');
         TransferHelper.safeTransferFrom(
@@ -261,7 +315,7 @@ contract ImpossibleRouter01 is IImpossibleRouter01 {
         address[] calldata path,
         address to,
         uint256 deadline
-    ) external override ensure(deadline) lock returns (uint256[] memory amounts) {
+    ) external virtual override ensure(deadline) nonReentrant returns (uint256[] memory amounts) {
         amounts = ImpossibleLibrary.getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= amountInMax, 'ImpossibleRouter: EXCESSIVE_INPUT_AMOUNT');
         TransferHelper.safeTransferFrom(
@@ -279,7 +333,7 @@ contract ImpossibleRouter01 is IImpossibleRouter01 {
         address[] calldata path,
         address to,
         uint256 deadline
-    ) external payable override ensure(deadline) lock returns (uint256[] memory amounts) {
+    ) external payable virtual override ensure(deadline) nonReentrant returns (uint256[] memory amounts) {
         require(path[0] == WETH, 'ImpossibleRouter: INVALID_PATH');
         amounts = ImpossibleLibrary.getAmountsOut(factory, msg.value, path);
         require(amounts[amounts.length - 1] >= amountOutMin, 'ImpossibleRouter: INSUFFICIENT_OUTPUT_AMOUNT');
@@ -295,7 +349,7 @@ contract ImpossibleRouter01 is IImpossibleRouter01 {
         address[] calldata path,
         address to,
         uint256 deadline
-    ) external override ensure(deadline) lock returns (uint256[] memory amounts) {
+    ) external virtual override ensure(deadline) nonReentrant returns (uint256[] memory amounts) {
         require(path[path.length - 1] == WETH, 'ImpossibleRouter: INVALID_PATH');
         amounts = ImpossibleLibrary.getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= amountInMax, 'ImpossibleRouter: EXCESSIVE_INPUT_AMOUNT');
@@ -317,7 +371,7 @@ contract ImpossibleRouter01 is IImpossibleRouter01 {
         address[] calldata path,
         address to,
         uint256 deadline
-    ) external override ensure(deadline) lock returns (uint256[] memory amounts) {
+    ) external virtual override ensure(deadline) nonReentrant returns (uint256[] memory amounts) {
         require(path[path.length - 1] == WETH, 'ImpossibleRouter: INVALID_PATH');
         amounts = ImpossibleLibrary.getAmountsOut(factory, amountIn, path);
         require(amounts[amounts.length - 1] >= amountOutMin, 'ImpossibleRouter: INSUFFICIENT_OUTPUT_AMOUNT');
@@ -338,22 +392,101 @@ contract ImpossibleRouter01 is IImpossibleRouter01 {
         address[] calldata path,
         address to,
         uint256 deadline
-    ) external payable override ensure(deadline) lock returns (uint256[] memory amounts) {
+    ) external payable virtual override ensure(deadline) nonReentrant returns (uint256[] memory amounts) {
         require(path[0] == WETH, 'ImpossibleRouter: INVALID_PATH');
         amounts = ImpossibleLibrary.getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= msg.value, 'ImpossibleRouter: EXCESSIVE_INPUT_AMOUNT');
         IWETH(WETH).deposit{value: amounts[0]}();
         assert(IWETH(WETH).transfer(ImpossibleLibrary.pairFor(factory, path[0], path[1]), amounts[0]));
         _swap(amounts, path, to);
-        if (msg.value > amounts[0]) TransferHelper.safeTransferETH(msg.sender, msg.value - amounts[0]); // refund dust eth, if any
+        // refund dust eth, if any
+        if (msg.value > amounts[0]) TransferHelper.safeTransferETH(msg.sender, msg.value - amounts[0]);
     }
 
-    // Unchanged from uni
+    // Changed from uni router02. Most of the logic sits in library.getAmountOutFeeOnTransfer()
+    // **** SWAP (supporting fee-on-transfer tokens) ****
+    // requires the initial amount to have already been sent to the first pair
+    function _swapSupportingFeeOnTransferTokens(address[] memory path, address _to) internal virtual {
+        for (uint256 i; i < path.length - 1; i++) {
+            (address input, address output) = (path[i], path[i + 1]);
+            (uint256 amount0Out, uint256 amount1Out) =
+                ImpossibleLibrary.getAmountOutFeeOnTransfer(input, output, factory);
+            address to = i < path.length - 2 ? ImpossibleLibrary.pairFor(factory, output, path[i + 2]) : _to;
+            IImpossiblePair(ImpossibleLibrary.pairFor(factory, input, output)).swap(
+                amount0Out,
+                amount1Out,
+                to,
+                new bytes(0)
+            );
+        }
+    }
+
+    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external ensure(deadline) nonReentrant {
+        TransferHelper.safeTransferFrom(
+            path[0],
+            msg.sender,
+            ImpossibleLibrary.pairFor(factory, path[0], path[1]),
+            amountIn
+        );
+        uint256 balanceBefore = IERC20(path[path.length - 1]).balanceOf(to);
+        _swapSupportingFeeOnTransferTokens(path, to);
+        require(
+            IERC20(path[path.length - 1]).balanceOf(to).sub(balanceBefore) >= amountOutMin,
+            'ImpossibleRouter: INSUFFICIENT_OUTPUT_AMOUNT'
+        );
+    }
+
+    function swapExactETHForTokensSupportingFeeOnTransferTokens(
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external payable ensure(deadline) nonReentrant {
+        require(path[0] == WETH, 'ImpossibleRouter: INVALID_PATH');
+        uint256 amountIn = msg.value;
+        IWETH(WETH).deposit{value: amountIn}();
+        assert(IWETH(WETH).transfer(ImpossibleLibrary.pairFor(factory, path[0], path[1]), amountIn));
+        uint256 balanceBefore = IERC20(path[path.length - 1]).balanceOf(to);
+        _swapSupportingFeeOnTransferTokens(path, to);
+        require(
+            IERC20(path[path.length - 1]).balanceOf(to).sub(balanceBefore) >= amountOutMin,
+            'ImpossibleRouter: INSUFFICIENT_OUTPUT_AMOUNT'
+        );
+    }
+
+    function swapExactTokensForETHSupportingFeeOnTransferTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external ensure(deadline) nonReentrant {
+        require(path[path.length - 1] == WETH, 'ImpossibleRouter: INVALID_PATH');
+        TransferHelper.safeTransferFrom(
+            path[0],
+            msg.sender,
+            ImpossibleLibrary.pairFor(factory, path[0], path[1]),
+            amountIn
+        );
+        _swapSupportingFeeOnTransferTokens(path, address(this));
+        uint256 amountOut = IERC20(WETH).balanceOf(address(this));
+        require(amountOut >= amountOutMin, 'ImpossibleRouter: INSUFFICIENT_OUTPUT_AMOUNT');
+        IWETH(WETH).withdraw(amountOut);
+        TransferHelper.safeTransferETH(to, amountOut);
+    }
+
+    // **** LIBRARY FUNCTIONS ****
     function quote(
         uint256 amountA,
         uint256 reserveA,
         uint256 reserveB
-    ) external pure override returns (uint256 amountB) {
+    ) external pure virtual override returns (uint256 amountB) {
         return ImpossibleLibrary.quote(amountA, reserveA, reserveB);
     }
 
@@ -373,20 +506,20 @@ contract ImpossibleRouter01 is IImpossibleRouter01 {
         return ImpossibleLibrary.getAmountIn(amountOut, tokenIn, tokenOut, factory);
     }
 
-    // Unchanged from uni
     function getAmountsOut(uint256 amountIn, address[] memory path)
         external
         view
+        virtual
         override
         returns (uint256[] memory amounts)
     {
         return ImpossibleLibrary.getAmountsOut(factory, amountIn, path);
     }
 
-    // Unchanged from uni
     function getAmountsIn(uint256 amountOut, address[] memory path)
         external
         view
+        virtual
         override
         returns (uint256[] memory amounts)
     {

@@ -280,7 +280,7 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
             (uint256 amount0Out, uint256 amount1Out) =
                 input == token0 ? (uint256(0), amountOut) : (amountOut, uint256(0));
             address to = i < path.length - 2 ? ImpossibleLibrary.pairFor(factory, output, path[i + 2]) : _to;
-            IImpossiblePair(ImpossibleLibrary.pairFor(factory, input, output)).cheapSwap(
+            IImpossiblePair(ImpossibleLibrary.pairFor(factory, input, output)).swap(
                 amount0Out,
                 amount1Out,
                 to,
@@ -412,7 +412,7 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
             (uint256 amount0Out, uint256 amount1Out) =
                 ImpossibleLibrary.getAmountOutFeeOnTransfer(input, output, factory);
             address to = i < path.length - 2 ? ImpossibleLibrary.pairFor(factory, output, path[i + 2]) : _to;
-            IImpossiblePair(ImpossibleLibrary.pairFor(factory, input, output)).cheapSwap(
+            IImpossiblePair(ImpossibleLibrary.pairFor(factory, input, output)).swap(
                 amount0Out,
                 amount1Out,
                 to,
