@@ -179,6 +179,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         emit changeInvariant(isXybk, ratioStart, ratioEnd);
     }
 
+// TODO: Consider adjusting fee to uint8, capping it at 256/10000 aka 2.56% max fee 
 // Current fees are limited to be less than 10% globally under all circumstances
     function updateTradeFees(uint16 _fee) external onlyGovernance {
         // fee is already uint so can't be negative
@@ -223,7 +224,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         emit updatedBoost(boost0, boost1, newBoost0, newBoost1, startBlockChange, endBlockChange);
     }
 
-    // Updates 
+    // Updates withdrawalfee ratio. Withdrawal fee calculated as 1/(newFeeRatio)
       function updateWithdrawalFeeRatio(uint256 _newFeeRatio) external {
        require(_newFeeRatio >= 100, 'IF: INVALID_withdrawalFeeRatio'); // capped at 1%  
        uint256 _oldFeeRatio = withdrawalFeeRatio;
