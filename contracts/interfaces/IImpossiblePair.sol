@@ -53,13 +53,6 @@ interface IImpossiblePair is IImpossibleERC20 {
         bytes calldata
     ) external;
 
-    function cheapSwap(
-        uint256,
-        uint256,
-        address,
-        bytes calldata
-    ) external;
-
     function skim(address to) external;
 
     function sync() external;

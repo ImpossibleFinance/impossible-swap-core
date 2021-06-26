@@ -34,8 +34,7 @@ library ImpossibleLibrary {
                         hex'ff',
                         factory,
                         keccak256(abi.encodePacked(token0, token1)),
-                        hex'22e5caa20726e4a500ca018413833e41036a5671975cd98836af552fbc7a1774' // init code hash
-                        // de353d433fa966b87b4bc7c1e4c8035e23fd1ae8b9908cc103a0403d4abfbe13 in prod
+                        hex'd7b4238ea5ee3437860258ae45580ad156673c8f7448c1b761816caeac3178d5' // init code hash
                     )
                 )
             )
@@ -181,7 +180,7 @@ library ImpossibleLibrary {
                     // Don't need to check in other case for reserveOut > reserveOut.sub(x) >= sqrtK since that case doesnt cross midpt
                     if (reserveOut > sqrtK && boost0 != boost1) {
                         // Break into 2 trades => start point -> midpoint (sqrtK, sqrtK), then midpoint -> final point
-                        amountIn = sqrtK.sub(reserveIn).mul(10000).div(10000 - fee);
+                        amountIn = sqrtK.sub(reserveIn).mul(10000); // Still need to divide by (10000 - fee). Do with below calculation to prevent early truncation
                         amountOut = amountOut.sub(reserveOut.sub(sqrtK));
                         reserveOut = sqrtK;
                         reserveIn = sqrtK;
@@ -190,8 +189,8 @@ library ImpossibleLibrary {
             }
         }
         uint256 numerator = (reserveIn.add(artiLiqTerm)).mul(amountOut).mul(10000);
-        uint256 denominator = (reserveOut.add(artiLiqTerm)).sub(amountOut).mul(10000 - fee);
-        amountIn = amountIn.add((numerator / denominator).add(1));
+        uint256 denominator = (reserveOut.add(artiLiqTerm)).sub(amountOut);
+        amountIn = (amountIn.add((numerator / denominator)).div(10000 - fee)).add(1);
     }
 
     function getAmountOutFeeOnTransfer(
