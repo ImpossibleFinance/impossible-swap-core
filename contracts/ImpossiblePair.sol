@@ -186,7 +186,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         require(_fee <= 1000, 'IF: INVALID_feeRatio'); // capped at 10%  
         uint16 _oldFee = tradeFee;
         tradeFee = _fee;
-        emit updatedTradeFees(oldFee, _fee);
+        emit updatedTradeFees(_oldFee, _fee);
     }
 
     // Allows delay change. Default is a 1 day delay
@@ -229,7 +229,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
        require(_newFeeRatio >= 100, 'IF: INVALID_withdrawalFeeRatio'); // capped at 1%  
        uint256 _oldFeeRatio = withdrawalFeeRatio;
        withdrawalFeeRatio = _newFeeRatio;
-       emit updatedFee(_oldFeeRatio, _newFeeRatio);
+       emit updatedWithdrawalFeeRatio(_oldFeeRatio, _newFeeRatio);
     }
 
     constructor() {
