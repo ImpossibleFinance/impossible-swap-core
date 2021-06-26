@@ -322,7 +322,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
                 // Check that this doesn't break scope or stack limit
                 //  1/201 is about 0.4975%
                 // Takes the 0.4975% Fee of LP tokens and adds allowance to claim for the IImpossibleFactory feeTo Address
-                feesAccrued.add(amount0.div(_feeRatio));
+                feesAccrued.add(liquidity.div(_feeRatio));
                 // _safeTransfer(address(this), IImpossibleFactory(factory).feeTo(), liquidity.div(_feeRatio));
                 _burn(address(this), liquidity.sub(liquidity.div(_feeRatio)));
             } else {
