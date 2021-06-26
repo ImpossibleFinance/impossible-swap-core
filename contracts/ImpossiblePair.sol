@@ -181,18 +181,21 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
 
 // Current fees are limited to be less than 10% globally under all circumstances
     function updateTradeFees(uint16 _fee) external onlyGovernance {
+        // fee is already uint so can't be negative
         require(_fee <= 1000, 'IF: INVALID_feeRatio'); // capped at 10%  
-        emit updatedTradeFees(tradeFee, _fee);
-        // fee is uint so can't be negative
+        uint16 _oldFee = tradeFee;
         tradeFee = _fee;
+        emit updatedTradeFees(oldFee, _fee);
     }
 
     // Allows delay change. Default is a 1 day delay
     // Timelock of 30 minutes is a minimum
     function updateDelay(uint256 _delay) external onlyGovernance {
         require(_delay >= THIRTY_MINS && delay <= TWO_WEEKS, 'IF: INVALID_DELAY');
-        emit updatedDelay(delay, _delay);
+        uint256 _oldDelay = delay;
         delay = _delay;
+        emit updatedDelay(_oldDelay, _delay);
+        
     }
 
     // Updates lower/upper hardstops for a pool
