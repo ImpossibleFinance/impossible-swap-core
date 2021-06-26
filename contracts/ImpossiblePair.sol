@@ -220,6 +220,14 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         emit updatedBoost(boost0, boost1, newBoost0, newBoost1, startBlockChange, endBlockChange);
     }
 
+    // Updates 
+      function updateWithdrawalFeeRatio(uint256 _newFeeRatio) external {
+       require(_newFeeRatio >= 100, 'IF: INVALID_withdrawalFeeRatio'); // capped at 1%  
+       uint256 _oldFeeRatio = withdrawalFeeRatio;
+       withdrawalFeeRatio = _newFeeRatio;
+       emit updatedFee(_oldFeeRatio, _newFeeRatio);
+    }
+
     constructor() {
         factory = msg.sender;
     }
@@ -441,6 +449,8 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         // TODO: Confirm that address(this) properly sends from this pair contract
         _safeTransfer(address(this), IImpossibleFactory(factory).feeTo(), transferAmount); //Tranfers owed debt to fee collection address
     }
+
+  
 
     // force balances to match reserves
     function skim(address to) external override nonReentrant {

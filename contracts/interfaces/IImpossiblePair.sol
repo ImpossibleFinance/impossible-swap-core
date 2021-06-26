@@ -19,6 +19,7 @@ interface IImpossiblePair is IImpossibleERC20 {
     event updatedTradeFees(uint256 _prevFee, uint256 _newFee);
     event updatedDelay(uint256 _oldDelay, uint256 _newDelay);
     event updatedHardstops(uint8 _ratioStart, uint8 _ratioEnd);
+    event updatedWithdrawalFeeRatio(uint256 _prevWithdrawalFee, uint256 _newWithdrwalFee)
     event updatedBoost(
         uint32 _prevBoost0,
         uint32 _prevBoost1,
