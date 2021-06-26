@@ -435,6 +435,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     function claimFees() external nonReentrant {
         uint256 transferAmount = feesAccrued;
         feesAccrued = 0; //Resets amount owed to claim to zero first
+        // TODO: Confirm that address(this) properly sends from this pair contract
         _safeTransfer(address(this), IImpossibleFactory(factory).feeTo(), transferAmount); //Tranfers owed debt to fee collection address
     }
 
