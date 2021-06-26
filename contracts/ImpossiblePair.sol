@@ -17,9 +17,11 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     uint256 public constant override MINIMUM_LIQUIDITY = 10**3;
     bytes4 private constant SELECTOR = bytes4(keccak256(bytes('transfer(address,uint256)')));
     uint256 private constant FEE = 201; // 1/201=0.4795% fee collected from LP if (feeOn)
-    uint256 private constant THIRTY_MINS = 600; // 30 mins in 3 second blocks
+    // Consider making fee updatable 
+    uint256 private constant THIRTY_MINS = 600; // 30 mins in 3 second blocks for BSC  - update if not BSC
+    // TODO: fix this so that there's a testing period that's 50 blocks instead.
     uint256 private constant ONE_DAY = 50; // 50 for testing, will be 24*60*60/3 = 28800 in production.
-    uint256 private constant TWO_WEEKS = 403200; //2 * 7 * 24 * 60 * 60 / 3;
+    uint256 private constant TWO_WEEKS = 403200; // 2 * 7 * 24 * 60 * 60 / 3;
 
     address public override factory;
     address public override token0;
@@ -44,6 +46,9 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
 
     uint8 public ratioStart;
     uint8 public ratioEnd;
+
+//  TODO: Confirm modifiers
+    uint256 private feesAccrued;
 
     // Delay sets the duration for boost changes over time
     uint256 public override delay;
@@ -308,8 +313,10 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
                 uint256 _FEE = FEE;
                 amount0 -= amount0.div(_FEE);
                 amount1 -= amount1.div(_FEE);
-                // Sends the 0.4975% Fee of LP tokens to the IImpossibleFactory feeTo Address
-                _safeTransfer(address(this), IImpossibleFactory(factory).feeTo(), liquidity.div(_FEE));
+                // Check that this doesn't break scope or stack limit
+                // Takes the 0.4975% Fee of LP tokens and adds allowance to claim for the IImpossibleFactory feeTo Address
+                feesAccrued.add(amount0.div(_FEE));
+                // _safeTransfer(address(this), IImpossibleFactory(factory).feeTo(), liquidity.div(_FEE));
                 _burn(address(this), liquidity.sub(liquidity.div(_FEE)));
             } else {
                 _burn(address(this), liquidity);
@@ -416,6 +423,15 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         uint256 boost = (_balance0 > _balance1) ? _boost0.sub(1) : _boost1.sub(1);
         uint256 innerTerm = boost.mul(sqrtOldK);
         return (_balance0.add(innerTerm)).mul(_balance1.add(innerTerm)).div((boost.add(1))**2) >= _oldK;
+    }
+
+//  Can be called by anyone 
+// TODO: Confirm if this should be called by anyone versus if we should limit to only fee address itself should call 
+// In theory, there could be other addresses that call this in a cron job every say 2 weeks.
+    function claimFees() external override nonReentrant {
+        uint256 transferAmount = feesAccrued;
+        feesAccrued = 0; //Resets amount owed to claim to zero first
+        _safeTransfer(address(this), IImpossibleFactory(factory).feeTo(), feesAccrued); //Tranfers owed debt to fee collection address
     }
 
     // force balances to match reserves
