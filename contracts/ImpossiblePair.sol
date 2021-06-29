@@ -319,14 +319,11 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
             require(amount0 > 0 && amount1 > 0, 'IF: INSUFFICIENT_LIQUIDITY_BURNED');
 
             if (feeOn) {
-                uint256 _feeRatio = withdrawalFeeRatio;
+                uint256 _feeRatio = withdrawalFeeRatio; // 1/201 is about 0.4975%
                 amount0 -= amount0.div(_feeRatio);
                 amount1 -= amount1.div(_feeRatio);
-                // Check that this doesn't break scope or stack limit
-                //  1/201 is about 0.4975%
                 // Takes the 0.4975% Fee of LP tokens and adds allowance to claim for the IImpossibleFactory feeTo Address
-                feesAccrued.add(liquidity.div(_feeRatio));
-                // _safeTransfer(address(this), IImpossibleFactory(factory).feeTo(), liquidity.div(_feeRatio));
+                feesAccrued = feesAccrued.add(liquidity.div(_feeRatio));
                 _burn(address(this), liquidity.sub(liquidity.div(_feeRatio)));
             } else {
                 _burn(address(this), liquidity);

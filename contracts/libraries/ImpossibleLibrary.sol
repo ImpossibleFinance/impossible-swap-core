@@ -34,7 +34,7 @@ library ImpossibleLibrary {
                         hex'ff',
                         factory,
                         keccak256(abi.encodePacked(token0, token1)),
-                        hex'0193d7d1cf838f874ede91ec02ff074afd443102e522552c956271686c08ac55' // init code hash
+                        hex'9b86e563f50aa5e718e21fc48d4cb8a3deb4113d822ef61bd5e96f4871f022a7' // init code hash
                     )
                 )
             )
