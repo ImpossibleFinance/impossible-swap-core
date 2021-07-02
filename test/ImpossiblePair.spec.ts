@@ -269,7 +269,7 @@ describe('ImpossiblePair', () => {
     await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
     const tx = await pair.swap(swapAmount, 0, wallet.address, '0x', overrides)
     const receipt = await tx.wait()
-    expect(receipt.gasUsed).to.eq(65199) // v2 uni was 73462
+    expect(receipt.gasUsed).to.eq(65222) // v2 uni was 73462
   })
 
   // Modified test to swap 1:1 token, just to check gas prices of swap
@@ -289,7 +289,7 @@ describe('ImpossiblePair', () => {
     await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
     const tx = await pair.swap(swapAmount, 0, wallet.address, '0x', overrides) // Testing gas fee
     const receipt = await tx.wait()
-    expect(receipt.gasUsed).to.eq(88507)
+    expect(receipt.gasUsed).to.eq(88530)
   })
 
   interface linInterpolateTestCase {
@@ -418,6 +418,7 @@ describe('ImpossiblePair', () => {
     const expectedLiquidity = expandTo18Decimals(1000)
     await pair.transfer(pair.address, expectedLiquidity.sub(MINIMUM_LIQUIDITY))
     await pair.burn(wallet.address, overrides)
+    await pair.claimFees()
     expect(await pair.balanceOf(other.address)).to.eq('4976323181643586162')
     expect(await pair.totalSupply()).to.eq(MINIMUM_LIQUIDITY.add('4976323181643586162'))
 

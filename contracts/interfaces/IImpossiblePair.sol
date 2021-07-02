@@ -16,12 +16,13 @@ interface IImpossiblePair is IImpossibleERC20 {
     );
     event Sync(uint256 reserve0, uint256 reserve1);
     event changeInvariant(bool _isXybk, uint256 _ratioStart, uint256 _ratioEnd);
-    event updatedTradeFees(uint256 _prevFee, uint256 _newFee);
+    event updatedTradeFees(uint256 _oldFee, uint256 _newFee);
     event updatedDelay(uint256 _oldDelay, uint256 _newDelay);
     event updatedHardstops(uint8 _ratioStart, uint8 _ratioEnd);
+    event updatedWithdrawalFeeRatio(uint256 _oldWithdrawalFee, uint256 _newWithdrawalFee);
     event updatedBoost(
-        uint32 _prevBoost0,
-        uint32 _prevBoost1,
+        uint32 _oldBoost0,
+        uint32 _oldBoost1,
         uint32 _newBoost0,
         uint32 _newBoost1,
         uint256 _start,

@@ -16,10 +16,11 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
 
     uint256 public constant override MINIMUM_LIQUIDITY = 10**3;
     bytes4 private constant SELECTOR = bytes4(keccak256(bytes('transfer(address,uint256)')));
-    uint256 private constant FEE = 201; // 1/201=0.4795% fee collected from LP if (feeOn)
-    uint256 private constant THIRTY_MINS = 600; // 30 mins in 3 second blocks
+
+    uint256 private constant THIRTY_MINS = 600; // 30 mins in 3 second blocks for BSC  - update if not BSC
+    // TODO: fix this so that there's a testing period that's 50 blocks instead.
     uint256 private constant ONE_DAY = 50; // 50 for testing, will be 24*60*60/3 = 28800 in production.
-    uint256 private constant TWO_WEEKS = 403200; //2 * 7 * 24 * 60 * 60 / 3;
+    uint256 private constant TWO_WEEKS = 403200; // 2 * 7 * 24 * 60 * 60 / 3;
 
     address public override factory;
     address public override token0;
@@ -32,11 +33,15 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     uint256 public kLast;
 
     // Variables for xybk invariant.
-    uint32 private boost0; // Boost0 applies when pool balance0 >= balance1 (when token1 is the more expensive token)
-    uint32 private boost1; // Boost1 applies when pool balance1 > balance0 (when token0 is the more expensive token)
-    uint32 private newBoost0;
-    uint32 private newBoost1;
-    uint16 private tradeFee; // Tradefee=amt of fees collected per swap denoted in basis points
+    // We have old + new boost to ensure all boost changes are made over time instead of instant
+    // Note that instant changing boosts enables a project to rugpull LP's underlying
+    // Boosts init as 1
+    uint32 private oldBoost0 = 1; // Boost0 applies when pool balance0 >= balance1 (when token1 is the more expensive token)
+    uint32 private oldBoost1 = 1; // Boost1 applies when pool balance1 > balance0 (when token0 is the more expensive token)
+    uint32 private newBoost0 = 1;
+    uint32 private newBoost1 = 1;
+
+    uint16 private tradeFee = 30; // Tradefee=amt of fees collected per swap denoted in basis points. Initialized at 30bp
     bool private isXybk;
 
     uint256 public startBlockChange; // Boost linearly interpolates between start/end block when changing
@@ -45,8 +50,12 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     uint8 public ratioStart;
     uint8 public ratioEnd;
 
+    uint256 private feesAccrued;
+    uint256 public withdrawalFeeRatio = 201; // 1/201=0.4795% fee collected from LP if (feeOn)
+
     // Delay sets the duration for boost changes over time
-    uint256 public override delay;
+    // Initializes as 1 day
+    uint256 public override delay = ONE_DAY;
 
     modifier onlyIFRouter() {
         require(msg.sender == router, 'IF: FORBIDDEN');
@@ -76,14 +85,14 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         returns (
             uint32 _newBoost0,
             uint32 _newBoost1,
-            uint32 _boost0,
-            uint32 _boost1
+            uint32 _oldBoost0,
+            uint32 _oldBoost1
         )
     {
         _newBoost0 = newBoost0;
         _newBoost1 = newBoost1;
-        _boost0 = boost0;
-        _boost1 = boost1;
+        _oldBoost0 = oldBoost0;
+        _oldBoost1 = oldBoost1;
     }
 
     // Helper function to calculate interpolated boost values. Allows for staircasing change of boost over time. Decimal places rounds down
@@ -135,58 +144,53 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     function makeXybk(
         uint8 _ratioStart,
         uint8 _ratioEnd,
-        uint32 _boost0,
-        uint32 _boost1
+        uint32 _newBoost0,
+        uint32 _newBoost1
     ) external onlyGovernance nonReentrant {
         require(!isXybk, 'IF: IS_ALREADY_XYBK');
-        require(0 <= _ratioStart && _ratioEnd <= 100, 'IF: IF: INVALID_RATIO');
-        require(_boost0 >= 1 && _boost1 >= 1 && _boost0 <= 1000000 && _boost1 <= 1000000, 'IF: INVALID_BOOST');
-        require(block.number >= endBlockChange, 'IF: BOOST_ALREADY_CHANGING');
-        (uint256 _reserve0, uint256 _reserve1) = getReserves();
-        _mintFee(_reserve0, _reserve1);
-        boost0 = newBoost0;
-        boost1 = newBoost1;
-        newBoost0 = _boost0;
-        newBoost1 = _boost1;
-        startBlockChange = block.number;
-        endBlockChange = block.number + delay;
+        _updateBoost(_newBoost0, _newBoost1);
         ratioStart = _ratioStart;
         ratioEnd = _ratioEnd;
         isXybk = true;
         emit changeInvariant(isXybk, _ratioStart, _ratioEnd);
-        emit updatedBoost(boost0, boost1, newBoost0, newBoost1, startBlockChange, endBlockChange);
     }
 
-    // makeUni requires pool to already be at boost=1. Setting isXybk=false makes efficient uni swaps.
-    // Removing isXybk state might save gas on xybk swaps. Then, isXybk is a function that returns calcBoost() == (1, 1)
+    // makeUni requires pool to already be at boost=1. Setting isXybk=false makes uni swaps more efficient vs xybk with boost=1.
+    // TODO: remove "isXybk" to simplify design. New: isXybk = !(boost0=boost1=1).
     function makeUni() external onlyGovernance nonReentrant {
         require(isXybk, 'IF: IS_ALREADY_UNI');
         require(block.number >= endBlockChange, 'IF: BOOST_ALREADY_CHANGING');
         require(newBoost0 == 1 && newBoost1 == 1, 'IF: INVALID_BOOST');
         isXybk = false;
-        boost0 = 1;
-        boost1 = 1;
+        oldBoost0 = 1; // Set boost to 1
+        oldBoost1 = 1; // xybk with boost=1 is just xy=k formula
         ratioStart = 0;
         ratioEnd = 100;
         emit changeInvariant(isXybk, ratioStart, ratioEnd);
     }
 
-    function updateTradeFees(uint16 _fee) external onlyGovernance {
-        require(_fee <= 1000, 'IF: INVALID_FEE'); // capped at 10%
-        emit updatedTradeFees(tradeFee, _fee);
-        // fee is uint so can't be negative
-        tradeFee = _fee;
+    // TODO: Consider adjusting fee to uint8, capping it at 256/10000 aka 2.56% max fee
+    // Current fees are limited to be less than 10% globally under all circumstances
+    function updateTradeFees(uint16 _newFee) external onlyGovernance {
+        // fee is already uint so can't be negative
+        require(_newFee <= 1000, 'IF: INVALID_FEE'); // capped at 10%
+        uint16 _oldFee = tradeFee;
+        tradeFee = _newFee;
+        emit updatedTradeFees(_oldFee, _newFee);
     }
 
     // Allows delay change. Default is a 1 day delay
     // Timelock of 30 minutes is a minimum
-    function updateDelay(uint256 _delay) external onlyGovernance {
-        require(_delay >= THIRTY_MINS && delay <= TWO_WEEKS, 'IF: INVALID_DELAY');
-        emit updatedDelay(delay, _delay);
-        delay = _delay;
+    function updateDelay(uint256 _newDelay) external onlyGovernance {
+        require(_newDelay >= THIRTY_MINS && delay <= TWO_WEEKS, 'IF: INVALID_DELAY');
+        uint256 _oldDelay = delay;
+        delay = _newDelay;
+        emit updatedDelay(_oldDelay, _newDelay);
     }
 
     // Updates lower/upper hardstops for a pool
+    // Can also act as emergency stop for the pair; in case something happens to any pairs
+    // that requires a pause, admin multisig can set _ratioEnd < _ratioStart to ensure all trades fail
     function updateHardstops(uint8 _ratioStart, uint8 _ratioEnd) external onlyGovernance nonReentrant {
         require(isXybk, 'IF: IS_CURRENTLY_UNI');
         require(0 <= _ratioStart && _ratioEnd <= 100, 'IF: INVALID_RATIO');
@@ -196,17 +200,34 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     }
 
     // Updates boost values. Boost changes over delay number of blocks.
-    function updateBoost(uint32 _boost0, uint32 _boost1) external onlyGovernance nonReentrant {
+    function updateBoost(uint32 _newBoost0, uint32 _newBoost1) external onlyGovernance nonReentrant {
         require(isXybk, 'IF: IS_CURRENTLY_UNI');
-        require(_boost0 >= 1 && _boost1 >= 1 && _boost0 <= 1000000 && _boost1 <= 1000000, 'IF: INVALID_BOOST');
+        _updateBoost(_newBoost0, _newBoost1);
+    }
+
+    function _updateBoost(uint32 _newBoost0, uint32 _newBoost1) internal {
+        require(
+            _newBoost0 >= 1 && _newBoost1 >= 1 && _newBoost0 <= 1000000 && _newBoost1 <= 1000000,
+            'IF: INVALID_BOOST'
+        );
         require(block.number >= endBlockChange, 'IF: BOOST_ALREADY_CHANGING');
-        boost0 = newBoost0;
-        boost1 = newBoost1;
-        newBoost0 = _boost0;
-        newBoost1 = _boost1;
+        (uint256 _reserve0, uint256 _reserve1) = getReserves();
+        _mintFee(_reserve0, _reserve1);
+        oldBoost0 = newBoost0;
+        oldBoost1 = newBoost1;
+        newBoost0 = _newBoost0;
+        newBoost1 = _newBoost1;
         startBlockChange = block.number;
         endBlockChange = block.number + delay;
-        emit updatedBoost(boost0, boost1, newBoost0, newBoost1, startBlockChange, endBlockChange);
+        emit updatedBoost(oldBoost0, oldBoost1, newBoost0, newBoost1, startBlockChange, endBlockChange);
+    }
+
+    // Updates withdrawalfee ratio. Withdrawal fee calculated as 1/(newFeeRatio)
+    function updateWithdrawalFeeRatio(uint256 _newFeeRatio) external onlyGovernance {
+        require(_newFeeRatio >= 100, 'IF: INVALID_FEE'); // capped at 1%
+        uint256 _oldFeeRatio = withdrawalFeeRatio;
+        withdrawalFeeRatio = _newFeeRatio;
+        emit updatedWithdrawalFeeRatio(_oldFeeRatio, _newFeeRatio);
     }
 
     constructor() {
@@ -223,15 +244,9 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         router = _router;
         token0 = _token0;
         token1 = _token1;
-        boost0 = 1;
-        boost1 = 1;
-        newBoost0 = 1;
-        newBoost1 = 1;
-        tradeFee = 30; // 30 basis points
-        delay = ONE_DAY;
     }
 
-    // update reserves and, on the first call per block, price accumulators
+    // Update reserves and, on the first call per block, price accumulators
     // PriceCumulativeLast calculations will cost too much gas for Impossibleswap invariant - scrap feature
     function _update(uint256 balance0, uint256 balance1) private {
         reserve0 = uint128(balance0);
@@ -305,12 +320,12 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
             require(amount0 > 0 && amount1 > 0, 'IF: INSUFFICIENT_LIQUIDITY_BURNED');
 
             if (feeOn) {
-                uint256 _FEE = FEE;
-                amount0 -= amount0.div(_FEE);
-                amount1 -= amount1.div(_FEE);
-                // Sends the 0.4975% Fee of LP tokens to the IImpossibleFactory feeTo Address
-                _safeTransfer(address(this), IImpossibleFactory(factory).feeTo(), liquidity.div(_FEE));
-                _burn(address(this), liquidity.sub(liquidity.div(_FEE)));
+                uint256 _feeRatio = withdrawalFeeRatio; // 1/201 is about 0.4975%
+                amount0 -= amount0.div(_feeRatio);
+                amount1 -= amount1.div(_feeRatio);
+                // Takes the 0.4975% Fee of LP tokens and adds allowance to claim for the IImpossibleFactory feeTo Address
+                feesAccrued = feesAccrued.add(liquidity.div(_feeRatio));
+                _burn(address(this), liquidity.sub(liquidity.div(_feeRatio)));
             } else {
                 _burn(address(this), liquidity);
             }
@@ -372,7 +387,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
                     require(balance0.mul(ratio) > balance1.mul(100 - ratio), 'IF: EXCEED_LOWER_STOP');
                 }
             }
-            uint256 _tradeFee = uint256(tradeFee); // Gas savings?
+            uint256 _tradeFee = uint256(tradeFee);
             uint256 balance0Adjusted = balance0.mul(10000).sub(amount0In.mul(_tradeFee)); // tradeFee amt of basis pts
             uint256 balance1Adjusted = balance1.mul(10000).sub(amount1In.mul(_tradeFee)); // tradeFee amt of basis pts
             _isXybk
@@ -416,6 +431,13 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         uint256 boost = (_balance0 > _balance1) ? _boost0.sub(1) : _boost1.sub(1);
         uint256 innerTerm = boost.mul(sqrtOldK);
         return (_balance0.add(innerTerm)).mul(_balance1.add(innerTerm)).div((boost.add(1))**2) >= _oldK;
+    }
+
+    //  Can be called by anyone
+    function claimFees() external nonReentrant {
+        uint256 transferAmount = feesAccrued;
+        feesAccrued = 0; //Resets amount owed to claim to zero first
+        _safeTransfer(address(this), IImpossibleFactory(factory).feeTo(), transferAmount); //Tranfers owed debt to fee collection address
     }
 
     // force balances to match reserves
