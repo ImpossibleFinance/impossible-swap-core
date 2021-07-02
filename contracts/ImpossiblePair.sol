@@ -222,7 +222,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     }
 
     // Updates withdrawalfee ratio. Withdrawal fee calculated as 1/(newFeeRatio)
-      function updateWithdrawalFeeRatio(uint256 _newFeeRatio) external {
+      function updateWithdrawalFeeRatio(uint256 _newFeeRatio) external onlyGovernance {
        require(_newFeeRatio >= 100, 'IF: INVALID_FEE'); // capped at 1%
        uint256 _oldFeeRatio = withdrawalFeeRatio;
        withdrawalFeeRatio = _newFeeRatio;
