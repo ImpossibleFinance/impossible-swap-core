@@ -17,7 +17,6 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     uint256 public constant override MINIMUM_LIQUIDITY = 10**3;
     bytes4 private constant SELECTOR = bytes4(keccak256(bytes('transfer(address,uint256)')));
 
-
     uint256 private constant THIRTY_MINS = 600; // 30 mins in 3 second blocks for BSC  - update if not BSC
     // TODO: fix this so that there's a testing period that's 50 blocks instead.
     uint256 private constant ONE_DAY = 50; // 50 for testing, will be 24*60*60/3 = 28800 in production.
@@ -187,7 +186,6 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         uint256 _oldDelay = delay;
         delay = _newDelay;
         emit updatedDelay(_oldDelay, _newDelay);
-
     }
 
     // Updates lower/upper hardstops for a pool
@@ -208,7 +206,10 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     }
 
     function _updateBoost(uint32 _newBoost0, uint32 _newBoost1) internal {
-        require(_newBoost0 >= 1 && _newBoost1 >= 1 && _newBoost0 <= 1000000 && _newBoost1 <= 1000000, 'IF: INVALID_BOOST');
+        require(
+            _newBoost0 >= 1 && _newBoost1 >= 1 && _newBoost0 <= 1000000 && _newBoost1 <= 1000000,
+            'IF: INVALID_BOOST'
+        );
         require(block.number >= endBlockChange, 'IF: BOOST_ALREADY_CHANGING');
         (uint256 _reserve0, uint256 _reserve1) = getReserves();
         _mintFee(_reserve0, _reserve1);
@@ -222,11 +223,11 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     }
 
     // Updates withdrawalfee ratio. Withdrawal fee calculated as 1/(newFeeRatio)
-      function updateWithdrawalFeeRatio(uint256 _newFeeRatio) external onlyGovernance {
-       require(_newFeeRatio >= 100, 'IF: INVALID_FEE'); // capped at 1%
-       uint256 _oldFeeRatio = withdrawalFeeRatio;
-       withdrawalFeeRatio = _newFeeRatio;
-       emit updatedWithdrawalFeeRatio(_oldFeeRatio, _newFeeRatio);
+    function updateWithdrawalFeeRatio(uint256 _newFeeRatio) external onlyGovernance {
+        require(_newFeeRatio >= 100, 'IF: INVALID_FEE'); // capped at 1%
+        uint256 _oldFeeRatio = withdrawalFeeRatio;
+        withdrawalFeeRatio = _newFeeRatio;
+        emit updatedWithdrawalFeeRatio(_oldFeeRatio, _newFeeRatio);
     }
 
     constructor() {

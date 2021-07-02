@@ -25,7 +25,7 @@ contract ImpossibleFactory is IImpossibleFactory {
     }
 
     function setRouter(address _router) external {
-        require(msg.sender == address(governance), "IF: FORBIDDEN");
+        require(msg.sender == address(governance), 'IF: FORBIDDEN');
         require(router == address(0x0), 'IF: ROUTER_SET');
         router = _router;
     }
@@ -36,7 +36,7 @@ contract ImpossibleFactory is IImpossibleFactory {
     }
 
     function setWhitelist(bool b) external {
-        require(msg.sender == address(governance), "IF: FORBIDDEN");
+        require(msg.sender == address(governance), 'IF: FORBIDDEN');
         whitelist = b;
     }
 
