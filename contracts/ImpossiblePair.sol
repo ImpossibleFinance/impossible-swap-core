@@ -18,9 +18,15 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     bytes4 private constant SELECTOR = bytes4(keccak256(bytes('transfer(address,uint256)')));
 
     uint256 private constant THIRTY_MINS = 600; // 30 mins in 3 second blocks for BSC  - update if not BSC
-    uint256 private constant ONE_DAY_PROD = 28800; // 50 for testing, will be 24*60*60/3 = 28800 in production.
-    uint256 private constant ONE_DAY_TESTING = 50;
-    uint256 private constant TWO_WEEKS = 403200; // 2 * 7 * 24 * 60 * 60 / 3;
+    uint32 private constant TWO_WEEKS = 403200; // 2 * 7 * 24 * 60 * 60 / 3;
+    uint32 private constant ONE_DAY_PROD = 28800; // 50 for testing, will be 24*60*60/3 = 28800 in production.
+    uint32 private constant ONE_DAY_TESTING = 50;
+
+    uint16 private tradeFee = 30; // Tradefee=amt of fees collected per swap denoted in basis points. Initialized at 30bp
+    uint8 public ratioStart;
+    uint8 public ratioEnd;
+
+    bool private isXybk;
 
     address public override factory;
     address public override token0;
@@ -34,21 +40,15 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
 
     // Variables for xybk invariant.
     // We have old + new boost to ensure all boost changes are made over time instead of instant
-    // Note that instant changing boosts is dangerous
+    // NOTE: instant changing boosts is dangerous
     // Boosts init as 1
     uint32 private oldBoost0 = 1; // Boost0 applies when pool balance0 >= balance1 (when token1 is the more expensive token)
     uint32 private oldBoost1 = 1; // Boost1 applies when pool balance1 > balance0 (when token0 is the more expensive token)
     uint32 private newBoost0 = 1;
     uint32 private newBoost1 = 1;
 
-    uint16 private tradeFee = 30; // Tradefee=amt of fees collected per swap denoted in basis points. Initialized at 30bp
-    bool private isXybk;
-
     uint256 public startBlockChange; // Boost linearly interpolates between start/end block when changing
     uint256 public endBlockChange; // BSC mines 10m blocks a year. uint32 lasts 400 years before overflowing
-
-    uint8 public ratioStart;
-    uint8 public ratioEnd;
 
     uint256 private feesAccrued;
     uint256 public withdrawalFeeRatio = 201; // 1/201=0.4795% fee collected from LP if (feeOn)
@@ -244,7 +244,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         router = _router;
         token0 = _token0;
         token1 = _token1;
-        _initBetterName(_token0, _token1); // Initializes public name in ERC20 with tokens in pool
+        _initBetterDesc(_token0, _token1); // Initializes public name in ERC20 with tokens in pool
     }
 
     // Update reserves and, on the first call per block, price accumulators
