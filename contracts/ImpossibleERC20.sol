@@ -8,7 +8,7 @@ import './interfaces/IERC20.sol';
 contract ImpossibleERC20 is IImpossibleERC20 {
     using SafeMath for uint256;
 
-    string public override name = 'Impossible LPs';
+    string public override name;
     string public constant override symbol = 'IF-LP';
     uint8 public constant override decimals = 18;
     uint256 public override totalSupply;
@@ -22,13 +22,14 @@ contract ImpossibleERC20 is IImpossibleERC20 {
     mapping(address => uint256) public override nonces;
 
     constructor() {
-        // Setup domain separator to test permit typehashs
+        // Initializes a placeholder name/domain separator for testing permit typehashs
+        name = 'Impossible Swap LPs';
         _setupDomainSeparator();
     }
 
     function _initBetterName(address _token0, address _token1) internal {
-        // This sets name to "Impossible LPs - token0/token1"
-        name = string(abi.encodePacked('Impossible LPs - ', IERC20(_token0).symbol(), '/', IERC20(_token1).symbol()));
+        // This sets name to "Impossible Swap LPs - token0/token1"
+        name = string(abi.encodePacked('Impossible Swap LPs - ', IERC20(_token0).symbol(), '/', IERC20(_token1).symbol()));
         _setupDomainSeparator();
     }
 
