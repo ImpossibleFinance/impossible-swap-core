@@ -11,11 +11,6 @@ import ImpossiblePair from '../build/ImpossiblePair.json'
 
 chai.use(solidity)
 
-const TEST_ADDRESSES: [string, string] = [
-  '0x1000000000000000000000000000000000000000',
-  '0x2000000000000000000000000000000000000000'
-]
-
 describe('ImpossibleSwapFactory', () => {
   const provider = new MockProvider({
     hardfork: 'istanbul',
@@ -26,9 +21,11 @@ describe('ImpossibleSwapFactory', () => {
   const loadFixture = createFixtureLoader(provider, [wallet, other])
 
   let factory: Contract
+  let tokenAddresses: [string, string]
   beforeEach(async () => {
     const fixture = await loadFixture(factoryFixture)
     factory = fixture.factory
+    tokenAddresses = [fixture.token0.address, fixture.token1.address]
   })
 
   it('feeTo, governance, allPairsLength', async () => {
@@ -42,7 +39,7 @@ describe('ImpossibleSwapFactory', () => {
     const create2Address = getCreate2Address(factory.address, tokens, bytecode)
     await expect(factory.createPair(...tokens))
       .to.emit(factory, 'PairCreated')
-      .withArgs(TEST_ADDRESSES[0], TEST_ADDRESSES[1], create2Address, bigNumberify(1))
+      .withArgs(tokenAddresses[0], tokenAddresses[1], create2Address, bigNumberify(1))
 
     await expect(factory.createPair(...tokens)).to.be.reverted // UniswapV2: PAIR_EXISTS
     await expect(factory.createPair(...tokens.slice().reverse())).to.be.reverted // UniswapV2: PAIR_EXISTS
@@ -53,22 +50,22 @@ describe('ImpossibleSwapFactory', () => {
 
     const pair = new Contract(create2Address, JSON.stringify(ImpossiblePair.abi), provider)
     expect(await pair.factory()).to.eq(factory.address)
-    expect(await pair.token0()).to.eq(TEST_ADDRESSES[0])
-    expect(await pair.token1()).to.eq(TEST_ADDRESSES[1])
+    expect(await pair.token0()).to.eq(tokenAddresses[0])
+    expect(await pair.token1()).to.eq(tokenAddresses[1])
   }
 
   it('createPair', async () => {
-    await createPair(TEST_ADDRESSES)
+    await createPair(tokenAddresses)
   })
 
   it('createPair:reverse', async () => {
-    await createPair(TEST_ADDRESSES.slice().reverse() as [string, string])
+    await createPair(tokenAddresses.slice().reverse() as [string, string])
   })
 
   it('createPair:gas', async () => {
-    const tx = await factory.createPair(...TEST_ADDRESSES)
+    const tx = await factory.createPair(...tokenAddresses)
     const receipt = await tx.wait()
-    expect(receipt.gasUsed).to.eq(3968695) // Uni v2 was 3051505. NOTE: this gas is a within-1% approx since we comment/change variables for pair tests.
+    expect(receipt.gasUsed).to.eq(4427942) // Uni v2 was 3051505. NOTE: this gas is a within-1% approx since we comment/change variables for pair tests.
   })
 
   it('setFeeTo', async () => {
