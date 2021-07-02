@@ -3,11 +3,12 @@ pragma solidity =0.7.6;
 
 import './interfaces/IImpossibleERC20.sol';
 import './libraries/SafeMath.sol';
+import './interfaces/IERC20.sol';
 
 contract ImpossibleERC20 is IImpossibleERC20 {
     using SafeMath for uint256;
 
-    string public constant override name = 'Impossible Swap LPs';
+    string public override name = 'Impossible LPs';
     string public constant override symbol = 'IF-LP';
     uint8 public constant override decimals = 18;
     uint256 public override totalSupply;
@@ -21,6 +22,17 @@ contract ImpossibleERC20 is IImpossibleERC20 {
     mapping(address => uint256) public override nonces;
 
     constructor() {
+        // Setup domain separator to test permit typehashs
+        _setupDomainSeparator();
+    }
+
+    function _initBetterName(address _token0, address _token1) internal {
+        // This sets name to "Impossible LPs - token0/token1"
+        name = string(abi.encodePacked('Impossible LPs - ', IERC20(_token0).symbol(), '/', IERC20(_token1).symbol()));
+        _setupDomainSeparator();
+    }
+
+    function _setupDomainSeparator() internal {
         uint256 chainId;
         assembly {
             chainId := chainid()

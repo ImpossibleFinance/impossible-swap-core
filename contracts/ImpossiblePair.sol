@@ -18,8 +18,8 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     bytes4 private constant SELECTOR = bytes4(keccak256(bytes('transfer(address,uint256)')));
 
     uint256 private constant THIRTY_MINS = 600; // 30 mins in 3 second blocks for BSC  - update if not BSC
-    // TODO: fix this so that there's a testing period that's 50 blocks instead.
-    uint256 private constant ONE_DAY = 50; // 50 for testing, will be 24*60*60/3 = 28800 in production.
+    uint256 private constant ONE_DAY_PROD = 28800; // 50 for testing, will be 24*60*60/3 = 28800 in production.
+    uint256 private constant ONE_DAY_TESTING = 50;
     uint256 private constant TWO_WEEKS = 403200; // 2 * 7 * 24 * 60 * 60 / 3;
 
     address public override factory;
@@ -34,7 +34,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
 
     // Variables for xybk invariant.
     // We have old + new boost to ensure all boost changes are made over time instead of instant
-    // Note that instant changing boosts enables a project to rugpull LP's underlying
+    // Note that instant changing boosts is dangerous
     // Boosts init as 1
     uint32 private oldBoost0 = 1; // Boost0 applies when pool balance0 >= balance1 (when token1 is the more expensive token)
     uint32 private oldBoost1 = 1; // Boost1 applies when pool balance1 > balance0 (when token0 is the more expensive token)
@@ -55,7 +55,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
 
     // Delay sets the duration for boost changes over time
     // Initializes as 1 day
-    uint256 public override delay = ONE_DAY;
+    uint256 public override delay = ONE_DAY_TESTING;
 
     modifier onlyIFRouter() {
         require(msg.sender == router, 'IF: FORBIDDEN');
@@ -244,6 +244,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         router = _router;
         token0 = _token0;
         token1 = _token1;
+        _initBetterName(_token0, _token1); // Initializes public name in ERC20 with tokens in pool
     }
 
     // Update reserves and, on the first call per block, price accumulators

@@ -18,9 +18,6 @@ library ImpossibleLibrary {
     }
 
     // calculates the CREATE2 address for a pair without making any external calls
-    // Bytecode:
-    // test: 7001e83fa95fc00db3ef41a018f2da0a7dbea398f06fe2cf2e1aa3f1c148978c
-    // prod:
     function pairFor(
         address factory,
         address tokenA,
@@ -34,7 +31,7 @@ library ImpossibleLibrary {
                         hex'ff',
                         factory,
                         keccak256(abi.encodePacked(token0, token1)),
-                        hex'da6a1ce7dc982f2f91db0acea93e2464413f9ab4712f7658414c0aa429724fd0' // init code hash
+                        hex'920741bff484815c0c52c9650e2df1e2ab9f7e08badffc835c6c51ff4e9cc3e2' // init code hash
                     )
                 )
             )
