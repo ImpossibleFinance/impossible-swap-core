@@ -18,6 +18,7 @@ import './interfaces/IWETH.sol';
     @notice This router builds upon basic Uni V2 Router02 by allowing custom
             calculations based on settings in pairs (uni/xybk/custom fees)
     @dev    See documentation at: https://docs.impossible.finance/impossible-swap/overview
+    @dev    Very little logical changes made in Router02. Most changes to accomodate xybk are in Library
 */
 
 contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
@@ -40,8 +41,18 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         assert(msg.sender == WETH); // only accept ETH via fallback from the WETH contract
     }
 
-    // Unchanged from uni
-    // **** ADD LIQUIDITY ****
+    /*
+     @notice Helper function for adding liquidity
+     @dev Logic is unchanged from uniswap-V2-Router02
+     @param tokenA The address of underlying tokenA to add
+     @param tokenB The address of underlying tokenB to add
+     @param amountADesired The desired amount of tokenA to add
+     @param amountBDesired The desired amount of tokenB to add
+     @param amountAMin The min amount of tokenA to add (amountAMin:amountBDesired sets bounds on ratio)
+     @param amountBMin The min amount of tokenB to add (amountADesired:amountBMin sets bounds on ratio)
+     @returns amountA Actual amount of tokenA added as liquidity to pair
+     @returns amountB Actual amount of tokenB added as liquidity to pair
+    */
     function _addLiquidity(
         address tokenA,
         address tokenB,
@@ -71,7 +82,21 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         }
     }
 
-    // Unchanged from uni
+    /*
+     @notice Function for basic add liquidity functionality
+     @dev Openzeppelin reentrancy guards
+     @param tokenA The address of underlying tokenA to add
+     @param tokenB The address of underlying tokenB to add
+     @param amountADesired The desired amount of tokenA to add
+     @param amountBDesired The desired amount of tokenB to add
+     @param amountAMin The min amount of tokenA to add (amountAMin:amountBDesired sets bounds on ratio)
+     @param amountBMin The min amount of tokenB to add (amountADesired:amountBMin sets bounds on ratio)
+     @param to The address to mint LP tokens to
+     @param deadline The block number after which this transaction is invalid
+     @returns amountA Amount of tokenA added as liquidity to pair
+     @returns amountB Actual amount of tokenB added as liquidity to pair
+     @returns liquidity Actual amount of LP tokens minted
+    */
     function addLiquidity(
         address tokenA,
         address tokenB,
@@ -100,7 +125,19 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         liquidity = IImpossiblePair(pair).mint(to);
     }
 
-    // Unchanged from uni
+    /*
+     @notice Function for add liquidity functionality with 1 token being WETH/WBNB
+     @dev Openzeppelin reentrancy guards
+     @param token The address of the non-ETH underlying token to add
+     @param amountTokenDesired The desired amount of non-ETH underlying token to add
+     @param amountTokenMin The min amount of non-ETH underlying token to add (amountTokenMin:ETH sent sets bounds on ratio)
+     @param amountETHMin The min amount of WETH/WBNB to add (amountTokenDesired:amountETHMin sets bounds on ratio)
+     @param to The address to mint LP tokens to
+     @param deadline The block number after which this transaction is invalid
+     @returns amountToken Amount of non-ETH underlying token added as liquidity to pair
+     @returns amountETH Actual amount of WETH/WBNB added as liquidity to pair
+     @returns liquidity Actual amount of LP tokens minted
+    */
     function addLiquidityETH(
         address token,
         uint256 amountTokenDesired,
@@ -137,8 +174,17 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         if (msg.value > amountETH) TransferHelper.safeTransferETH(msg.sender, msg.value - amountETH); // refund dust eth, if any
     }
 
-    // Unchanged from uni
-    // **** REMOVE LIQUIDITY ****
+    /*
+     @notice Helper function for removing liquidity
+     @dev Logic is unchanged from uniswap-V2-Router02
+     @param tokenA The address of underlying tokenA in LP token
+     @param tokenB The address of underlying tokenB in LP token
+     @param liquidity The amount of LP tokens to burn
+     @param amountAMin The min amount of underlying tokenA that has to be received
+     @param amountBMin The min amount of underlying tokenB that has to be received
+     @returns amountA Actual amount of underlying tokenA received
+     @returns amountB Actual amount of underlying tokenB received
+    */
     function _removeLiquidity(
         address tokenA,
         address tokenB,
@@ -157,6 +203,19 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         require(amountB >= amountBMin, 'ImpossibleRouter: INSUFFICIENT_B_AMOUNT');
     }
 
+    /*
+     @notice Function for basic remove liquidity functionality
+     @dev Openzeppelin reentrancy guards
+     @param tokenA The address of underlying tokenA in LP token
+     @param tokenB The address of underlying tokenB in LP token
+     @param liquidity The amount of LP tokens to burn
+     @param amountAMin The min amount of underlying tokenA that has to be received
+     @param amountBMin The min amount of underlying tokenB that has to be received
+     @param to The address to send underlying tokens to
+     @param deadline The block number after which this transaction is invalid
+     @returns amountA Actual amount of underlying tokenA received
+     @returns amountB Actual amount of underlying tokenB received
+    */
     function removeLiquidity(
         address tokenA,
         address tokenB,
@@ -169,7 +228,18 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         return _removeLiquidity(tokenA, tokenB, liquidity, amountAMin, amountBMin, to, deadline);
     }
 
-    // Unchanged from uni
+    /*
+     @notice Function for remove liquidity functionality with 1 token being WETH/WBNB
+     @dev Openzeppelin reentrancy guards
+     @param token The address of the non-ETH underlying token to receive
+     @param liquidity The amount of LP tokens to burn
+     @param amountTokenMin The desired amount of non-ETH underlying token that has to be received
+     @param amountETHMin The min amount of ETH that has to be received
+     @param to The address to send underlying tokens to
+     @param deadline The block number after which this transaction is invalid
+     @returns amountToken Actual amount of non-ETH underlying token received
+     @returns amountETH Actual amount of WETH/WBNB received
+    */
     function removeLiquidityETH(
         address token,
         uint256 liquidity,
@@ -192,7 +262,21 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         TransferHelper.safeTransferETH(to, amountETH);
     }
 
-    // Unchanged from uni
+    /*
+    @notice Function for remove liquidity functionality using EIP712 permit
+     @dev Openzeppelin reentrancy guards
+     @param tokenA The address of underlying tokenA in LP token
+     @param tokenB The address of underlying tokenB in LP token
+     @param liquidity The amount of LP tokens to burn
+     @param amountAMin The min amount of underlying tokenA that has to be received
+     @param amountBMin The min amount of underlying tokenB that has to be received
+     @param to The address to send underlying tokens to
+     @param deadline The block number after which this transaction is invalid
+     @param approveMax How much tokens are approved for transfer (liquidity, or max)
+     @param v,r,s Variables that construct a valid EVM signature
+     @returns amountA Actual amount of underlying tokenA received
+     @returns amountB Actual amount of underlying tokenB received
+    */
     function removeLiquidityWithPermit(
         address tokenA,
         address tokenB,
@@ -212,7 +296,19 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         (amountA, amountB) = _removeLiquidity(tokenA, tokenB, liquidity, amountAMin, amountBMin, to, deadline);
     }
 
-    // Unchanged from uni
+    /*
+     @notice Function for remove liquidity functionality using EIP712 permit with 1 token being WETH/WBNB
+     @param token The address of the non-ETH underlying token to receive
+     @param liquidity The amount of LP tokens to burn
+     @param amountTokenMin The desired amount of non-ETH underlying token that has to be received
+     @param amountETHMin The min amount of ETH that has to be received
+     @param to The address to send underlying tokens to
+     @param deadline The block number after which this transaction is invalid
+     @param approveMax How much tokens are approved for transfer (liquidity, or max)
+     @param v,r,s Variables that construct a valid EVM signature
+     @returns amountToken Actual amount of non-ETH underlying token received
+     @returns amountETH Actual amount of WETH/WBNB received
+    */
     function removeLiquidityETHWithPermit(
         address token,
         uint256 liquidity,
@@ -231,8 +327,18 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         (amountToken, amountETH) = removeLiquidityETH(token, liquidity, amountTokenMin, amountETHMin, to, deadline);
     }
 
-    // Unchanged from uni
-    // **** REMOVE LIQUIDITY (supporting fee-on-transfer tokens) ****
+    /*
+     @notice Function for remove liquidity functionality with 1 token being WETH/WBNB
+     @dev This is used when non-WETH/WBNB underlying token is fee-on-transfer: e.g. FEI algo stable v1
+     @dev Openzeppelin reentrancy guards
+     @param token The address of the non-ETH underlying token to receive
+     @param liquidity The amount of LP tokens to burn
+     @param amountTokenMin The desired amount of non-ETH underlying token that has to be received
+     @param amountETHMin The min amount of ETH that has to be received
+     @param to The address to send underlying tokens to
+     @param deadline The block number after which this transaction is invalid
+     @returns amountETH Actual amount of WETH/WBNB received
+    */
     function removeLiquidityETHSupportingFeeOnTransferTokens(
         address token,
         uint256 liquidity,
@@ -247,7 +353,19 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         TransferHelper.safeTransferETH(to, amountETH);
     }
 
-    // Unchanged from uni
+    /*
+     @notice Function for remove liquidity functionality using EIP712 permit with 1 token being WETH/WBNB
+     @dev This is used when non-WETH/WBNB underlying token is fee-on-transfer: e.g. FEI algo stable v1
+     @param token The address of the non-ETH underlying token to receive
+     @param liquidity The amount of LP tokens to burn
+     @param amountTokenMin The desired amount of non-ETH underlying token that has to be received
+     @param amountETHMin The min amount of ETH that has to be received
+     @param to The address to send underlying tokens to
+     @param deadline The block number after which this transaction is invalid
+     @param approveMax How much tokens are approved for transfer (liquidity, or max)
+     @param v,r,s Variables that construct a valid EVM signature
+     @returns amountETH Actual amount of WETH/WBNB received
+    */
     function removeLiquidityETHWithPermitSupportingFeeOnTransferTokens(
         address token,
         uint256 liquidity,
@@ -273,9 +391,13 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         );
     }
 
-    // Unchanged from uni
-    // **** SWAP ****
-    // requires the initial amount to have already been sent to the first pair
+    /*
+     @notice Helper function for basic swap
+     @dev Requires the initial amount to have been sent to the first pair contract
+     @param amounts[] An array of trade amounts. Trades are made from arr idx 0 to arr end idx sequentially
+     @param path[] An array of token addresses. Trades are made from arr idx 0 to arr end idx sequentially
+     @param _to The address that receives the final tokens
+    */
     function _swap(
         uint256[] memory amounts,
         address[] memory path,
@@ -297,7 +419,16 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         }
     }
 
-    // Unchanged from uni (but getAmountsOut calculates uni/xybk invariant)
+    /*
+     @notice Swap function - receive maximum output given fixed input
+     @dev Openzeppelin reentrancy guards
+     @param amountIn The exact input amount
+     @param amountOutMin The minimum output amount allowed for a successful swap
+     @param path[] An array of token addresses. Trades are made from arr idx 0 to arr end idx sequentially
+     @param to The address that receives the output tokens
+     @param deadline The block number after which this transaction is invalid
+     @param amounts[] Array of actual output token amounts received per swap, sequentially.
+    */
     function swapExactTokensForTokens(
         uint256 amountIn,
         uint256 amountOutMin,
@@ -316,7 +447,16 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         _swap(amounts, path, to);
     }
 
-    // Unchanged from uni (but getAmountsIn calculates uni/xybk invariant)
+    /*
+     @notice Swap function - receive desired output amount given a maximum input amount
+     @dev Openzeppelin reentrancy guards
+     @param amountOut The exact output amount desired
+     @param amountInMax The maximum input amount allowed for a successful swap
+     @param path[] An array of token addresses. Trades are made from arr idx 0 to arr end idx sequentially
+     @param to The address that receives the output tokens
+     @param deadline The block number after which this transaction is invalid
+     @param amounts[] Array of actual output token amounts received per swap, sequentially.
+    */
     function swapTokensForExactTokens(
         uint256 amountOut,
         uint256 amountInMax,
@@ -335,7 +475,15 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         _swap(amounts, path, to);
     }
 
-    // Unchanged from uni (but getAmountsOut calculates uni/xybk invariant)
+    /*
+     @notice Swap function - receive maximum output given fixed input of ETH
+     @dev Openzeppelin reentrancy guards
+     @param amountOutMin The minimum output amount allowed for a successful swap
+     @param path[] An array of token addresses. Trades are made from arr idx 0 to arr end idx sequentially
+     @param to The address that receives the output tokens
+     @param deadline The block number after which this transaction is invalid
+     @param amounts[] Array of actual output token amounts received per swap, sequentially.
+    */
     function swapExactETHForTokens(
         uint256 amountOutMin,
         address[] calldata path,
@@ -350,7 +498,16 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         _swap(amounts, path, to);
     }
 
-    // Unchanged from uni (but getAmountsIn calculates uni/xybk invariant)
+    /*
+    @notice Swap function - receive desired ETH output amount given a maximum input amount
+     @dev Openzeppelin reentrancy guards
+     @param amountOut The exact output amount desired
+     @param amountInMax The maximum input amount allowed for a successful swap
+     @param path[] An array of token addresses. Trades are made from arr idx 0 to arr end idx sequentially
+     @param to The address that receives the output tokens
+     @param deadline The block number after which this transaction is invalid
+     @param amounts[] Array of actual output token amounts received per swap, sequentially.
+    */
     function swapTokensForExactETH(
         uint256 amountOut,
         uint256 amountInMax,
@@ -372,7 +529,16 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         TransferHelper.safeTransferETH(to, amounts[amounts.length - 1]);
     }
 
-    // Unchanged from uni (but getAmountsOut calculates uni/xybk invariant)
+    /*
+     @notice Swap function - receive maximum ETH output given fixed input of tokens
+     @dev Openzeppelin reentrancy guards
+     @param amountIn The amount of input tokens
+     @param amountOutMin The minimum ETH output amount required for successful swaps
+     @param path[] An array of token addresses. Trades are made from arr idx 0 to arr end idx sequentially
+     @param to The address that receives the output tokens
+     @param deadline The block number after which this transaction is invalid
+     @param amounts[] Array of actual output token amounts received per swap, sequentially.
+    */
     function swapExactTokensForETH(
         uint256 amountIn,
         uint256 amountOutMin,
@@ -394,7 +560,15 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         TransferHelper.safeTransferETH(to, amounts[amounts.length - 1]);
     }
 
-    // Unchanged from uni (but getAmountsIn calculates uni/xybk invariant)
+    /*
+     @notice Swap function - receive maximum tokens output given fixed ETH input
+     @dev Openzeppelin reentrancy guards
+     @param amountOut The minimum output amount in tokens required for successful swaps
+     @param path[] An array of token addresses. Trades are made from arr idx 0 to arr end idx sequentially
+     @param to The address that receives the output tokens
+     @param deadline The block number after which this transaction is invalid
+     @param amounts[] Array of actual output token amounts received per swap, sequentially.
+    */
     function swapETHForExactTokens(
         uint256 amountOut,
         address[] calldata path,
@@ -411,9 +585,11 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         if (msg.value > amounts[0]) TransferHelper.safeTransferETH(msg.sender, msg.value - amounts[0]);
     }
 
-    // Changed from uni router02. Most of the logic sits in library.getAmountOutFeeOnTransfer()
-    // **** SWAP (supporting fee-on-transfer tokens) ****
-    // requires the initial amount to have already been sent to the first pair
+    /*
+     @notice Helper function for swap supporting fee on transfer tokens
+     @param path[] An array of token addresses. Trades are made from arr idx 0 to arr end idx sequentially
+     @param _to The address that receives the output tokens
+    */
     function _swapSupportingFeeOnTransferTokens(address[] memory path, address _to) internal virtual {
         for (uint256 i; i < path.length - 1; i++) {
             (address input, address output) = (path[i], path[i + 1]);
@@ -489,7 +665,13 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         TransferHelper.safeTransferETH(to, amountOut);
     }
 
-    // **** LIBRARY FUNCTIONS ****
+    /*
+     @notice Quote returns amountB based on some amountA, in the ratio of reserveA:reserveB
+     @param amountA The amount of token A
+     @param reserveA The amount of reserveA
+     @param reserveB The amount of reserveB
+     @returns amountB The amount of token B that matches amount A in the ratio of reserves
+    */
     function quote(
         uint256 amountA,
         uint256 reserveA,
@@ -498,6 +680,15 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         return ImpossibleLibrary.quote(amountA, reserveA, reserveB);
     }
 
+    /*
+     @notice Quotes maximum output given exact input amount of tokens and addresses of tokens in pair
+     @dev The library function considers custom swap fees/invariants/asymmetric tuning of pairs
+     @dev However, library function doesn't consider limits created by hardstops
+     @param amountIn The input amount of token A
+     @param tokenIn The address of input token
+     @param tokenOut The address of output token
+     @returns uint256 The maximum output amount of token B for a valid swap
+    */
     function getAmountOut(
         uint256 amountIn,
         address tokenIn,
@@ -506,6 +697,15 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         return ImpossibleLibrary.getAmountOut(amountIn, tokenIn, tokenOut, factory);
     }
 
+    /*
+     @notice Quotes minimum input given exact output amount of tokens and addresses of tokens in pair
+     @dev The library function considers custom swap fees/invariants/asymmetric tuning of pairs
+     @dev However, library function doesn't consider limits created by hardstops
+     @param amountOut The desired output amount of token A
+     @param tokenIn The address of input token
+     @param tokenOut The address of output token
+     @returns uint256 The minimum input amount of token A for a valid swap
+    */
     function getAmountIn(
         uint256 amountOut,
         address tokenIn,
@@ -514,6 +714,14 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         return ImpossibleLibrary.getAmountIn(amountOut, tokenIn, tokenOut, factory);
     }
 
+    /*
+     @notice Quotes maximum output given exact input amount of tokens and addresses of tokens in trade sequence
+     @dev The library function considers custom swap fees/invariants/asymmetric tuning of pairs
+     @dev However, library function doesn't consider limits created by hardstops
+     @param amountIn The input amount of token A
+     @param path[] An array of token addresses. Trades are made from arr idx 0 to arr end idx sequentially
+     @returns amounts[] The maximum possible output amount of all tokens through sequential swaps
+    */
     function getAmountsOut(uint256 amountIn, address[] memory path)
         external
         view
@@ -524,6 +732,14 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
         return ImpossibleLibrary.getAmountsOut(factory, amountIn, path);
     }
 
+    /*
+     @notice Quotes minimum input given exact output amount of tokens and addresses of tokens in trade sequence
+     @dev The library function considers custom swap fees/invariants/asymmetric tuning of pairs
+     @dev However, library function doesn't consider limits created by hardstops
+     @param amountOut The output amount of token A
+     @param path[] An array of token addresses. Trades are made from arr idx 0 to arr end idx sequentially
+     @returns amounts[] The minimum output amount required of all tokens through sequential swaps
+    */
     function getAmountsIn(uint256 amountOut, address[] memory path)
         external
         view
