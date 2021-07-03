@@ -12,6 +12,14 @@ import './libraries/SafeMath.sol';
 import './interfaces/IERC20.sol';
 import './interfaces/IWETH.sol';
 
+/*
+    @title  Router02 for Impossible Swap V3
+    @author Impossible Finance
+    @notice This router builds upon basic Uni V2 Router02 by allowing custom
+            calculations based on settings in pairs (uni/xybk/custom fees)
+    @dev    See documentation at: https://docs.impossible.finance/impossible-swap/overview
+*/
+
 contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
     using SafeMath for uint256;
 

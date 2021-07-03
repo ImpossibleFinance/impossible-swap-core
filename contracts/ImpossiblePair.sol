@@ -11,18 +11,37 @@ import './interfaces/IERC20.sol';
 import './interfaces/IImpossibleFactory.sol';
 import './interfaces/IImpossibleCallee.sol';
 
+/*
+    @title  Pair contract for Impossible Swap V3
+    @author Impossible Finance
+    @notice This factory builds upon basic Uni V2 Pair by adding xybk
+            invariant, ability to switch between invariants/boost levels,
+            and ability to set asymmetrical tuning.
+    @dev    See documentation at: https://docs.impossible.finance/impossible-swap/overview
+*/
+
 contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     using SafeMath for uint256;
 
     uint256 public constant override MINIMUM_LIQUIDITY = 10**3;
     bytes4 private constant SELECTOR = bytes4(keccak256(bytes('transfer(address,uint256)')));
 
-    uint256 private constant THIRTY_MINS = 600; // 30 mins in 3 second blocks for BSC  - update if not BSC
-    uint32 private constant TWO_WEEKS = 403200; // 2 * 7 * 24 * 60 * 60 / 3;
-    uint32 private constant ONE_DAY_PROD = 28800; // 50 for testing, will be 24*60*60/3 = 28800 in production.
+    /*
+     @param ONE_DAY_TESTING Impractical to call evm_mine 28800 times per test so set to 50
+     @dev These time vars are based on BSC's 3 second block time
+    */
+    uint256 private constant THIRTY_MINS = 600;
+    uint32 private constant TWO_WEEKS = 403200;
+    uint32 private constant ONE_DAY_PROD = 28800;
     uint32 private constant ONE_DAY_TESTING = 50;
 
-    uint16 private tradeFee = 30; // Tradefee=amt of fees collected per swap denoted in basis points. Initialized at 30bp
+    // @param tradeFee is fee collected per swap in basis points. Init at 30bp.
+    uint16 private tradeFee = 30;
+
+    // @param ratioStart/ratioEnd are hard stops. When ratios of tokens in pools go above
+    //        ratioEnd or below ratioStart, trade in the direction that further imbalances
+    //        pool is halted. Trades that reduce imbalance will still be allowed.
+    // @dev   This is to control amount of IL faced by LPs on a pool-by-pool basis
     uint8 public ratioStart;
     uint8 public ratioEnd;
 
@@ -33,28 +52,44 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     address public override token1;
     address public override router;
 
-    uint128 private reserve0; // Single storage slot
-    uint128 private reserve1; // Single storage slot
+    uint128 private reserve0;
+    uint128 private reserve1;
 
     uint256 public kLast;
 
-    // Variables for xybk invariant.
-    // We have old + new boost to ensure all boost changes are made over time instead of instant
-    // NOTE: instant changing boosts is dangerous
-    // Boosts init as 1
-    uint32 private oldBoost0 = 1; // Boost0 applies when pool balance0 >= balance1 (when token1 is the more expensive token)
-    uint32 private oldBoost1 = 1; // Boost1 applies when pool balance1 > balance0 (when token0 is the more expensive token)
+    /*
+     @param These are the variables for boost.
+     @dev Boosts in practice are a function of oldBoost, newBoost, startBlock and endBlock
+     @dev We linearly interpolate between oldBoost and newBoost over the blocks
+     @dev Note that governance being able to instantly change boosts is dangerous
+     @dev Boost0 applies when pool balance0 >= balance1 (when token1 is the more expensive token)
+     @dev Boost1 applies when pool balance1 > balance0 (when token0 is the more expensive token)
+    */
+    uint32 private oldBoost0 = 1;
+    uint32 private oldBoost1 = 1;
     uint32 private newBoost0 = 1;
     uint32 private newBoost1 = 1;
 
-    uint256 public startBlockChange; // Boost linearly interpolates between start/end block when changing
-    uint256 public endBlockChange; // BSC mines 10m blocks a year. uint32 lasts 400 years before overflowing
+    /*
+     @dev BSC mines 10m blocks a year. uint32 will last 400 years before overflowing
+    */
+    uint256 public startBlockChange;
+    uint256 public endBlockChange;
 
+    /*
+     @param feesAccrued is used to batch fees to Impossible to reduce cost for users/LPs
+    */
     uint256 private feesAccrued;
-    uint256 public withdrawalFeeRatio = 201; // 1/201=0.4795% fee collected from LP if (feeOn)
 
-    // Delay sets the duration for boost changes over time
-    // Initializes as 1 day
+    /*
+     @param withdrawalFeeRatio is the fee collected on burn. Init as 1/201=0.4795% fee (if feeOn)
+    */
+    uint256 public withdrawalFeeRatio = 201; //
+
+    /*
+     @param delay Delay sets the duration for boost changes over time. Init as 1 day
+     @dev In test environment, set to 50 blocks.
+    */
     uint256 public override delay = ONE_DAY_TESTING;
 
     modifier onlyIFRouter() {
@@ -63,22 +98,38 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     }
 
     modifier onlyGovernance() {
-        require(msg.sender == IImpossibleFactory(factory).governance(), 'IF: FORBIDDEN'); // NOTE: Comment out when running tests to allow calls to makeXybk
+        require(msg.sender == IImpossibleFactory(factory).governance(), 'IF: FORBIDDEN');
         _;
     }
 
+    /*
+     @notice Gets the fee per swap in basis points, as well as if this pair is uni or xybk
+     @returns _tradeFee Fee per swap in basis points
+     @returns _isXybk Boolean if this swap is using uniswap or xybk
+    */
     function getFeeAndXybk() external view override returns (uint256 _tradeFee, bool _isXybk) {
         _tradeFee = tradeFee;
         _isXybk = isXybk;
     }
 
-    // Get reserves. No timestamp unlike uni
+    /*
+     @notice Gets the reserves in the pair contract
+     @returns _reserve0 Reserve amount of token0 in the pair
+     @returns _reserve1 Reserve amount of token1 in the pair
+    */
     function getReserves() public view override returns (uint256 _reserve0, uint256 _reserve1) {
         _reserve0 = uint256(reserve0);
         _reserve1 = uint256(reserve1);
     }
 
-    // Helper function to get boost values
+    /*
+     @notice Getter for the stored boost state
+     @dev Helper function for internal use. If uni invariant, all boosts=1
+     @returns _newBoost0 New boost0 value
+     @returns _newBoost1 New boost1 value
+     @returns _oldBoost0 Old boost0 value
+     @returns _oldBoost1 Old boost1 value
+    */
     function getBoost()
         internal
         view
@@ -95,7 +146,14 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         _oldBoost1 = oldBoost1;
     }
 
-    // Helper function to calculate interpolated boost values. Allows for staircasing change of boost over time. Decimal places rounds down
+    /*
+     @notice Helper function to calculate a linearly interpolated boost
+     @dev Calculations: old + |new - old| * (curr-start)/end-start
+     @param oldBst The old boost
+     @param newBst The new boost
+     @param end The endblock which linear interpolation ends at
+     @returns uint256 Linearly interpolated boost value
+    */
     function linInterpolate(
         uint32 oldBst,
         uint32 newBst,
@@ -117,7 +175,12 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         }
     }
 
-    // Calculates boost if in the middle of a linear interpolation, else return _newBoosts
+    /*
+     @notice Function to get/calculate actual boosts in the system
+     @dev If block.number > endBlock, just return new boosts
+     @returns _boost0 The actual boost0 value
+     @returns _boost1 The actual boost1 value
+    */
     function calcBoost() public view override returns (uint256 _boost0, uint256 _boost1) {
         uint256 _endBlockChange = endBlockChange;
         if (block.number >= _endBlockChange) {
@@ -131,6 +194,13 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         }
     }
 
+    /*
+     @notice Safe transfer implementation for tokens
+     @dev Requires the transfer to succeed and return either null or True
+     @param token The token to transfer
+     @param to The address to transfer to
+     @param value The amount of tokens to transfer
+    */
     function _safeTransfer(
         address token,
         address to,
@@ -140,7 +210,16 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         require(success && (data.length == 0 || abi.decode(data, (bool))), 'IF: TRANSFER_FAILED');
     }
 
-    // Causes pool to use xybk invariant to uni invariant
+    /*
+     @notice Switches pool from uniswap invariant to xybk invariant
+     @dev Can only be called by IF governance
+     @dev Requires the pool to be uniswap invariant currently
+     @dev _ratioStart and _ratioEnd must be between 0 and 100
+     @param _ratioStart If token ratios in pool are below this, trade that further imbalances pool is halted
+     @param _ratioEnd If token ratios in pool are above this, trade that further imbalances pool is halted
+     @param _newBoost0 The new boost0
+     @param _newBoost1 The new boost1
+    */
     function makeXybk(
         uint8 _ratioStart,
         uint8 _ratioEnd,
@@ -148,6 +227,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         uint32 _newBoost1
     ) external onlyGovernance nonReentrant {
         require(!isXybk, 'IF: IS_ALREADY_XYBK');
+        require(_ratioStart <= 100 && _ratioEnd <= 100, 'IF: INVALID_RATIO');
         _updateBoost(_newBoost0, _newBoost1);
         ratioStart = _ratioStart;
         ratioEnd = _ratioEnd;
@@ -155,8 +235,11 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         emit changeInvariant(isXybk, _ratioStart, _ratioEnd);
     }
 
-    // makeUni requires pool to already be at boost=1. Setting isXybk=false makes uni swaps more efficient vs xybk with boost=1.
-    // TODO: remove "isXybk" to simplify design. New: isXybk = !(boost0=boost1=1).
+    /*
+     @notice Switches pool from xybk invariant to uniswap invariant
+     @dev Can only be called by IF governance
+     @dev Requires the pool to be xybk invariant currently
+    */
     function makeUni() external onlyGovernance nonReentrant {
         require(isXybk, 'IF: IS_ALREADY_UNI');
         require(block.number >= endBlockChange, 'IF: BOOST_ALREADY_CHANGING');
@@ -169,18 +252,25 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         emit changeInvariant(isXybk, ratioStart, ratioEnd);
     }
 
-    // TODO: Consider adjusting fee to uint8, capping it at 256/10000 aka 2.56% max fee
-    // Current fees are limited to be less than 10% globally under all circumstances
-    function updateTradeFees(uint16 _newFee) external onlyGovernance {
-        // fee is already uint so can't be negative
-        require(_newFee <= 1000, 'IF: INVALID_FEE'); // capped at 10%
+    /*
+     @notice Setter function for trade fee per swap
+     @dev Can only be called by IF governance
+     @dev uint8 fee means 255 basis points max, or max trade fee of 2.56%
+     @dev uint8 type means fee cannot be negative
+     @param _newFee The new trade fee collected per swap in basis points
+    */
+    function updateTradeFees(uint8 _newFee) external onlyGovernance {
         uint16 _oldFee = tradeFee;
-        tradeFee = _newFee;
+        tradeFee = uint16(_newFee);
         emit updatedTradeFees(_oldFee, _newFee);
     }
 
-    // Allows delay change. Default is a 1 day delay
-    // Timelock of 30 minutes is a minimum
+    /*
+     @notice Setter function for time delay for boost changes
+     @dev Can only be called by IF governance
+     @dev Delay must be between 30 minutes and 2 weeks
+     @param _newDelay The new time delay in BSC blocks (3 second block time)
+    */
     function updateDelay(uint256 _newDelay) external onlyGovernance {
         require(_newDelay >= THIRTY_MINS && delay <= TWO_WEEKS, 'IF: INVALID_DELAY');
         uint256 _oldDelay = delay;
@@ -188,23 +278,41 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         emit updatedDelay(_oldDelay, _newDelay);
     }
 
-    // Updates lower/upper hardstops for a pool
-    // Can also act as emergency stop for the pair; in case something happens to any pairs
-    // that requires a pause, admin multisig can set _ratioEnd < _ratioStart to ensure all trades fail
+    /*
+     @notice Setter function for hard stop ratios in the pair
+     @dev Can only be called by IF governance
+     @dev _ratioStart and _ratioEnd must be between 0 and 100
+     @dev Note: Allows halting trade in pools through setting _ratioStart > _ratioEnd
+     @param _ratioStart If token ratios in pool are below this, trade that further imbalances pool is halted
+     @param _ratioEnd If token ratios in pool are above this, trade that further imbalances pool is halted
+    */
     function updateHardstops(uint8 _ratioStart, uint8 _ratioEnd) external onlyGovernance nonReentrant {
         require(isXybk, 'IF: IS_CURRENTLY_UNI');
-        require(0 <= _ratioStart && _ratioEnd <= 100, 'IF: INVALID_RATIO');
+        require(_ratioStart <= 100 && _ratioEnd <= 100, 'IF: INVALID_RATIO');
         ratioStart = _ratioStart;
         ratioEnd = _ratioEnd;
         emit updatedHardstops(_ratioStart, _ratioEnd);
     }
 
-    // Updates boost values. Boost changes over delay number of blocks.
+    /*
+     @notice Setter function for pool boost state
+     @dev Can only be called by IF governance
+     @dev Pool has to be using xybk invariant to update boost
+     @param _newBoost0 The new boost0
+     @param _newBoost1 The new boost1
+    */
     function updateBoost(uint32 _newBoost0, uint32 _newBoost1) external onlyGovernance nonReentrant {
         require(isXybk, 'IF: IS_CURRENTLY_UNI');
         _updateBoost(_newBoost0, _newBoost1);
     }
 
+    /*
+     @notice Internal helper function to change boosts
+     @dev _newBoost0 and _newBoost1 have to be between 1 and 1000000
+     @dev Pool cannot already have changing boosts
+     @param _newBoost0 The new boost0
+     @param _newBoost1 The new boost1
+    */
     function _updateBoost(uint32 _newBoost0, uint32 _newBoost1) internal {
         require(
             _newBoost0 >= 1 && _newBoost1 >= 1 && _newBoost0 <= 1000000 && _newBoost1 <= 1000000,
@@ -222,7 +330,12 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         emit updatedBoost(oldBoost0, oldBoost1, newBoost0, newBoost1, startBlockChange, endBlockChange);
     }
 
-    // Updates withdrawalfee ratio. Withdrawal fee calculated as 1/(newFeeRatio)
+    /*
+     @notice Setter function for the withdrawal fee that goes to Impossible per burn
+     @dev Can only be called by IF governance
+     @dev Fee is 1/_newFeeRatio. So <1% is 1/(>=100)
+     @param _newFeeRatio The new fee ratio
+    */
     function updateWithdrawalFeeRatio(uint256 _newFeeRatio) external onlyGovernance {
         require(_newFeeRatio >= 100, 'IF: INVALID_FEE'); // capped at 1%
         uint256 _oldFeeRatio = withdrawalFeeRatio;
@@ -234,7 +347,14 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         factory = msg.sender;
     }
 
-    // called once by the factory at time of deployment
+    /*
+     @notice Initialization function by factory on deployment
+     @dev Can only be called by factory, and will only be called once
+     @dev _initBetterDesc adds token0/token1 symbols to ERC20 LP name, symbol
+     @param _token0 Address of token0 in pair
+     @param _token0 Address of token1 in pair
+     @param _router Address of trusted IF router
+    */
     function initialize(
         address _token0,
         address _token1,
@@ -247,15 +367,25 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         _initBetterDesc(_token0, _token1); // Initializes public name in ERC20 with tokens in pool
     }
 
-    // Update reserves and, on the first call per block, price accumulators
-    // PriceCumulativeLast calculations will cost too much gas for Impossibleswap invariant - scrap feature
+    /*
+     @notice Updates reserve state in pair
+     @dev Removed TWAP from uniswap V2 pair
+     @param balance0 The new balance for token0
+     @param balance1 The new balance for token1
+    */
     function _update(uint256 balance0, uint256 balance1) private {
         reserve0 = uint128(balance0);
         reserve1 = uint128(balance1);
         emit Sync(reserve0, reserve1);
     }
 
-    // if fee is on, mint liquidity equivalent to 4/5th of the growth in sqrt(k)
+    /*
+     @notice Mints fee to IF governance multisig treasury
+     @dev If feeOn, mint liquidity equal to 4/5th of growth in sqrt(K)
+     @param _reserve0 The latest balance for token0 for fee calculations
+     @param _reserve1 The latest balance for token1 for fee calculations
+     @returns feeOn If the mint/burn fee is turned on in this pair
+    */
     function _mintFee(uint256 _reserve0, uint256 _reserve1) private returns (bool feeOn) {
         address feeTo = IImpossibleFactory(factory).feeTo();
         feeOn = feeTo != address(0);
@@ -277,8 +407,13 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         }
     }
 
-    // this low-level function should be called from a contract which performs important safety checks
-    // Unchanged - LP tokens represent proportion of tokens in pool
+    /*
+     @notice Mints LP tokens based on sent underlying tokens. Underlying tokens must already be sent to contract
+     @dev Function should be called from IF router unless you know what you're doing
+     @dev Openzeppelin reentrancy guards are used
+     @param to The address to mint LP tokens to
+     @returns liquidity The amount of LP tokens minted
+    */
     function mint(address to) external override nonReentrant returns (uint256 liquidity) {
         (uint256 _reserve0, uint256 _reserve1) = getReserves(); // gas savings
         uint256 balance0 = IERC20(token0).balanceOf(address(this));
@@ -302,7 +437,14 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         emit Mint(msg.sender, amount0, amount1);
     }
 
-    // this low-level function should be called from a contract which performs important safety checks
+    /*
+     @notice Burns LP tokens and returns underlying tokens. LP tokens must already be sent to contract
+     @dev Function should be called from IF router unless you know what you're doing
+     @dev Openzeppelin reentrancy guards are used
+     @param to The address to send underlying tokens to
+     @returns amount0 The amount of token0's sent
+     @returns amount1 The amount of token1's sent
+    */
     function burn(address to) external override nonReentrant returns (uint256 amount0, uint256 amount1) {
         (uint256 _reserve0, uint256 _reserve1) = getReserves(); // gas savings
         bool feeOn = _mintFee(_reserve0, _reserve1);
@@ -313,15 +455,14 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         uint256 liquidity = balanceOf[address(this)];
 
         {
-            // Scope for _totalSupply is only within this block
-            uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
-            amount0 = liquidity.mul(balance0) / _totalSupply; // using balances ensures pro-rata distribution
-            amount1 = liquidity.mul(balance1) / _totalSupply; // using balances ensures pro-rata distribution
+            uint256 _totalSupply = totalSupply;
+            amount0 = liquidity.mul(balance0) / _totalSupply;
+            amount1 = liquidity.mul(balance1) / _totalSupply;
 
             require(amount0 > 0 && amount1 > 0, 'IF: INSUFFICIENT_LIQUIDITY_BURNED');
 
             if (feeOn) {
-                uint256 _feeRatio = withdrawalFeeRatio; // 1/201 is about 0.4975%
+                uint256 _feeRatio = withdrawalFeeRatio; // 1/201 ~= 0.4975%
                 amount0 -= amount0.div(_feeRatio);
                 amount1 -= amount1.div(_feeRatio);
                 // Takes the 0.4975% Fee of LP tokens and adds allowance to claim for the IImpossibleFactory feeTo Address
@@ -331,12 +472,10 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
                 _burn(address(this), liquidity);
             }
 
-            // Outside of this if feeOn statement, returns the appropriate funds to the user
             _safeTransfer(_token0, to, amount0);
             _safeTransfer(_token1, to, amount1);
         }
 
-        // Grabs the new balances of the tokens in the LP pool after the withdrawal takes place
         {
             balance0 = IERC20(_token0).balanceOf(address(this));
             balance1 = IERC20(_token1).balanceOf(address(this));
@@ -346,8 +485,17 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         emit Burn(msg.sender, amount0, amount1, to);
     }
 
-    // this low-level function should be called from a contract which performs important safety checks
-    // Without safety checks, calling swap directly will throw failure at bounds
+    /*
+     @notice Performs a swap operation. Tokens must already be sent to contract
+     @dev Input/output amount of tokens must >0 and pool needs to have sufficient liquidity
+     @dev Openzeppelin reentrancy guards are used
+     @dev Swap is reverted if it exceeds lower or upper hard stops
+     @dev Post-swap invariant check is performed (either uni or xybk)
+     @param amount0Out The amount of token0's to output
+     @param amount1Out The amount of token1's to output
+     @param to The address to output tokens to
+     @param data Call data allowing for another function call
+    */
     function swap(
         uint256 amount0Out,
         uint256 amount1Out,
@@ -407,9 +555,12 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
     }
 
-    // Calculating new stableswap invariant K value given balance0, balance1
-    // Exact calculation of K given token balances. Called after mint/burn/swaps
-    // let i=(boost-1)*(x+y)/(4*boost-2); sqrtK = sqrt(i**2 + b0*b1/(2*boost-1)) + i
+    /*
+     @notice Internal function to compute the K value for an xybk pair based on token balances and boost
+     @dev More details on math at: https://docs.impossible.finance/impossible-swap/swap-math
+     @param _balance0 Current state of balance0 in contract
+     @param _balance1 Current state of balance1 in contract
+    */
     function _xybkComputeK(uint256 _balance0, uint256 _balance1) private view returns (uint256 k) {
         (uint256 _boost0, uint256 _boost1) = calcBoost();
         uint256 boost = (_balance0 > _balance1) ? _boost0.sub(1) : _boost1.sub(1);
@@ -418,10 +569,14 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         k = (Math.sqrt(term**2 + _balance0.mul(_balance1).div(denom)) + term)**2;
     }
 
-    // Calculating new stableswap invariant K given balance0, balance1, old K
-    // Called to check K invariance post-swap
-    // let i=(boost-1)*sqrt(K_old); K_new = (b0+i)*(b1+i)/(boost**2)
-    // If K_new > K_old, this check still maintains correctness
+    /*
+     @notice Performing K invariant check through an approximation/bound using old K
+     @dev More details on math at: https://docs.impossible.finance/impossible-swap/swap-math
+     @dev If K_new >= K_old, correctness should hold
+     @param _balance0 Current state of balance0 in contract
+     @param _balance1 Current state of balance1 in contract
+     @param _oldK The K value pre-swap
+    */
     function _xybkCheckK(
         uint256 _balance0,
         uint256 _balance1,
@@ -434,14 +589,22 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         return (_balance0.add(innerTerm)).mul(_balance1.add(innerTerm)).div((boost.add(1))**2) >= _oldK;
     }
 
-    //  Can be called by anyone
+    /*
+     @notice Claims LP tokens to IF governance based on accumulated mint/burn fees
+     @dev More details on math at: https://docs.impossible.finance/impossible-swap/swap-math
+     @dev Openzeppelin reentrancy guards are used
+    */
     function claimFees() external nonReentrant {
         uint256 transferAmount = feesAccrued;
         feesAccrued = 0; //Resets amount owed to claim to zero first
         _safeTransfer(address(this), IImpossibleFactory(factory).feeTo(), transferAmount); //Tranfers owed debt to fee collection address
     }
 
-    // force balances to match reserves
+    /*
+     @notice Forces balances to match reserves
+     @dev Requires balance0 >= reserve0 and balance1 >= reserve1
+     @param to Address to send excess underlying tokens to
+    */
     function skim(address to) external override nonReentrant {
         address _token0 = token0; // gas savings
         address _token1 = token1; // gas savings
@@ -450,7 +613,9 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         _safeTransfer(_token1, to, IERC20(_token1).balanceOf(address(this)).sub(_reserve1));
     }
 
-    // force reserves to match balances
+    /*
+     @notice Forces reserves to match balances
+    */
     function sync() external override nonReentrant {
         uint256 _balance0 = IERC20(token0).balanceOf(address(this));
         uint256 _balance1 = IERC20(token1).balanceOf(address(this));

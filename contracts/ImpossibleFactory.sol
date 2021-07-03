@@ -4,6 +4,14 @@ pragma solidity =0.7.6;
 import './interfaces/IImpossibleFactory.sol';
 import './ImpossiblePair.sol';
 
+/*
+    @title  Swap Factory for Impossible Swap V3
+    @author Impossible Finance
+    @notice This factory builds upon basic Uni V2 factory by changing "feeToSetter"
+            to "governance" and adding a whitelist
+    @dev    See documentation at: https://docs.impossible.finance/impossible-swap/overview
+*/
+
 contract ImpossibleFactory is IImpossibleFactory {
     bytes32 public constant INIT_CODE_PAIR_HASH = keccak256(abi.encodePacked(type(ImpossiblePair).creationCode));
 
@@ -20,70 +28,89 @@ contract ImpossibleFactory is IImpossibleFactory {
         governance = _governance;
     }
 
+    modifier onlyGovernance() {
+        require(msg.sender == governance, 'IF: FORBIDDEN');
+        _;
+    }
+
     function allPairsLength() external view override returns (uint256) {
         return allPairs.length;
     }
 
-    function setRouter(address _router) external {
-        require(msg.sender == address(governance), 'IF: FORBIDDEN');
-        require(router == address(0x0), 'IF: ROUTER_SET');
+    /*
+     @notice Sets router address in factory
+     @dev Router is checked in pair contracts to ensure calls are from IF routers only
+     @dev Can only be set by IF governance
+     @param _router The address of the IF router
+    */
+    function setRouter(address _router) external onlyGovernance {
         router = _router;
     }
 
-    function changeTokenAccess(address token, bool allowed) external {
-        require(msg.sender == address(governance), 'IF: FORBIDDEN');
+    /*
+     @notice Either allow or stop a token from being a valid token for new pair contracts
+     @dev Changes can only be made by IF governance
+     @param token The address of the token
+     @param allowed The boolean to include/exclude this token in the whitelist
+    */
+    function changeTokenAccess(address token, bool allowed) external onlyGovernance {
         approvedTokens[token] = allowed;
     }
 
-    function setWhitelist(bool b) external {
-        require(msg.sender == address(governance), 'IF: FORBIDDEN');
+    /*
+     @notice Turns on or turns off the whitelist feature
+     @dev Can only be set by IF governance
+     @param b The boolean that whitelist is set to
+    */
+    function setWhitelist(bool b) external onlyGovernance {
         whitelist = b;
     }
 
+    /*
+     @notice Creates a new Impossible Pair contract
+     @dev If whitelist is on, can only use approved tokens in whitelist
+     @dev tokenA must not be equal to tokenB
+     @param tokenA The address of token A. Token A will be in the new Pair contract
+     @param tokenB The address of token B. Token B will be in the new Pair contract
+    */
     function createPair(address tokenA, address tokenB) external override returns (address pair) {
-        // tokens must not be identical (i.e. have same address)
         if (whitelist) {
-            require(approvedTokens[tokenA] && approvedTokens[tokenB], 'IF: Unapproved tokens');
+            require(approvedTokens[tokenA] && approvedTokens[tokenB], 'IF: RESTRICTED_TOKENS');
         }
         require(tokenA != tokenB, 'IF: IDENTICAL_ADDRESSES');
-        // order token addresses from low to high
         (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
-        // token0 and token1 should always be ordered from low to high, so only check token0
         require(token0 != address(0), 'IF: ZERO_ADDRESS');
-        // both directions of mappings should always exist, so we only need to check one direction
-        // (see code below for logic that adds mappings)
         require(getPair[token0][token1] == address(0), 'IF: PAIR_EXISTS');
 
-        // deploy pair contract using create2 opcode
-        // for more info: https://hackernoon.com/using-ethereums-create2-nw2137q7
         bytes memory bytecode = type(ImpossiblePair).creationCode;
         bytes32 salt = keccak256(abi.encodePacked(token0, token1));
         assembly {
             pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
         }
 
-        // deploy pair
         IImpossiblePair(pair).initialize(token0, token1, router);
-        // populate mappings in both forward and reverse directions
+
         getPair[token0][token1] = pair;
         getPair[token1][token0] = pair;
-        // add new pair to array of all pair addresses
         allPairs.push(pair);
-        // emit event
         emit PairCreated(token0, token1, pair, allPairs.length);
     }
 
-    function setFeeTo(address _feeTo) external override {
-        // setter of feeTo must be `feeToSetter`
-        require(msg.sender == governance, 'IF: FORBIDDEN');
-        // set feeTo
+    /*
+     @notice Sets the address that fees from the swap are paid to
+     @dev Can only be called by IF governance
+     @param _feeTo The address that will receive swap fees
+    */
+    function setFeeTo(address _feeTo) external override onlyGovernance {
         feeTo = _feeTo;
     }
 
-    function setGovernance(address _governance) external override {
-        // setter of feeToSetter must be current `feeToSetter`
-        require(msg.sender == governance, 'IF: FORBIDDEN');
-        // set feeToSetter
+    /*
+     @notice Sets the address for IF governance
+     @dev Can only be called by IF governance
+     @param _governance The address of the new IF governance
+    */
+    function setGovernance(address _governance) external override onlyGovernance {
         governance = _governance;
     }
 }
