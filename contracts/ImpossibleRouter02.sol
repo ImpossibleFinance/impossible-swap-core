@@ -587,6 +587,7 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
 
     /*
      @notice Helper function for swap supporting fee on transfer tokens
+     @dev Requires the initial amount to have been sent to the first pair contract
      @param path[] An array of token addresses. Trades are made from arr idx 0 to arr end idx sequentially
      @param _to The address that receives the output tokens
     */
