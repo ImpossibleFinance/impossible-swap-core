@@ -215,7 +215,6 @@ library ImpossibleLibrary {
                 (boost0, boost1) = IImpossiblePair(pair).calcBoost();
             }
             if (isXybk) {
-                // TODO: why out/in flipped?
                 uint256 sqrtK = xybkComputeSqrtK(isMatch, reserveIn, reserveOut, boost0, boost1);
                 // since balance0=balance1 only at sqrtK, if final balanceOut >= sqrtK means balanceOut >= balanceIn
                 if (reserveOut.sub(amountOut) >= sqrtK) {
@@ -373,7 +372,7 @@ library ImpossibleLibrary {
                 ? ((reserveIn > reserveOut) ? boost0.sub(1) : boost1.sub(1))
                 : ((reserveOut > reserveIn) ? boost0.sub(1) : boost1.sub(1));
         uint256 denom = boost.mul(2).add(1); // 1+2*boost
-        uint256 term = boost.mul(x.add(y)).div(denom.mul(2)); // boost*(x+y)/(2+4*boost)
-        return Math.sqrt(term**2 + x.mul(y).div(denom)) + term;
+        uint256 term = boost.mul(reserveIn.add(reserveOut)).div(denom.mul(2)); // boost*(x+y)/(2+4*boost)
+        return Math.sqrt(term**2 + reserveIn.mul(reserveOut).div(denom)) + term;
     }
 }

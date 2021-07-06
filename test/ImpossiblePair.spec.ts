@@ -1,7 +1,3 @@
-//TODO: Before test, comment out line 105 in onlyGovernance modifier. This allows pools to be made stable for our tests.
-//TODO: Also, change delay of ONE_DAY to 50 instead of ONE_DAY = 24 * 60 * 60 / 3
-//TODO: These todos are left uncommented on purpose - once these actions are done, comment them and test will run without errors
-
 import chai, { expect } from 'chai'
 import { Contract } from 'ethers'
 import { solidity, MockProvider, createFixtureLoader } from 'ethereum-waffle'
