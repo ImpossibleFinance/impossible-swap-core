@@ -4,7 +4,7 @@ pragma solidity =0.7.6;
 import './interfaces/IImpossibleFactory.sol';
 import './ImpossiblePair.sol';
 
-/*
+/**
     @title  Swap Factory for Impossible Swap V3
     @author Impossible Finance
     @notice This factory builds upon basic Uni V2 factory by changing "feeToSetter"
@@ -24,6 +24,10 @@ contract ImpossibleFactory is IImpossibleFactory {
     mapping(address => mapping(address => address)) public override getPair;
     address[] public override allPairs;
 
+    /**
+     @notice The constructor for the IF swap factory
+     @param _governance The address for IF Governance
+    */
     constructor(address _governance) {
         governance = _governance;
     }
@@ -33,11 +37,16 @@ contract ImpossibleFactory is IImpossibleFactory {
         _;
     }
 
+    /**
+     @notice The constructor for the IF swap factory
+     @dev _governance The address for IF Governance
+     @return uint256 The current number of pairs in the IF swap
+    */
     function allPairsLength() external view override returns (uint256) {
         return allPairs.length;
     }
 
-    /*
+    /**
      @notice Sets router address in factory
      @dev Router is checked in pair contracts to ensure calls are from IF routers only
      @dev Can only be set by IF governance
@@ -47,7 +56,7 @@ contract ImpossibleFactory is IImpossibleFactory {
         router = _router;
     }
 
-    /*
+    /**
      @notice Either allow or stop a token from being a valid token for new pair contracts
      @dev Changes can only be made by IF governance
      @param token The address of the token
@@ -57,7 +66,7 @@ contract ImpossibleFactory is IImpossibleFactory {
         approvedTokens[token] = allowed;
     }
 
-    /*
+    /**
      @notice Turns on or turns off the whitelist feature
      @dev Can only be set by IF governance
      @param b The boolean that whitelist is set to
@@ -66,12 +75,13 @@ contract ImpossibleFactory is IImpossibleFactory {
         whitelist = b;
     }
 
-    /*
+    /**
      @notice Creates a new Impossible Pair contract
      @dev If whitelist is on, can only use approved tokens in whitelist
      @dev tokenA must not be equal to tokenB
      @param tokenA The address of token A. Token A will be in the new Pair contract
      @param tokenB The address of token B. Token B will be in the new Pair contract
+     @return pair The address of the created pair containing token A and token B
     */
     function createPair(address tokenA, address tokenB) external override returns (address pair) {
         if (whitelist) {
@@ -96,7 +106,7 @@ contract ImpossibleFactory is IImpossibleFactory {
         emit PairCreated(token0, token1, pair, allPairs.length);
     }
 
-    /*
+    /**
      @notice Sets the address that fees from the swap are paid to
      @dev Can only be called by IF governance
      @param _feeTo The address that will receive swap fees
@@ -105,7 +115,7 @@ contract ImpossibleFactory is IImpossibleFactory {
         feeTo = _feeTo;
     }
 
-    /*
+    /**
      @notice Sets the address for IF governance
      @dev Can only be called by IF governance
      @param _governance The address of the new IF governance
