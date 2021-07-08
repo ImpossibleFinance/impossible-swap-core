@@ -355,8 +355,8 @@ describe('ImpossibleRouter01', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [RouterVersion.ImpossibleRouter01]: 99961, // Uni was 101876
-              [RouterVersion.ImpossibleRouter02]: 99961
+              [RouterVersion.ImpossibleRouter01]: 99920, // Uni was 101876
+              [RouterVersion.ImpossibleRouter02]: 99920
             }[routerVersion as RouterVersion]
           )
         })
@@ -418,8 +418,8 @@ describe('ImpossibleRouter01', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [RouterVersion.ImpossibleRouter01]: 137453, // Uni was 101876
-              [RouterVersion.ImpossibleRouter02]: 137453
+              [RouterVersion.ImpossibleRouter01]: 137445, // Uni was 101876
+              [RouterVersion.ImpossibleRouter02]: 137445
             }[routerVersion as RouterVersion]
           )
         })
@@ -481,8 +481,8 @@ describe('ImpossibleRouter01', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [RouterVersion.ImpossibleRouter01]: 137833, // Uni was 101876
-              [RouterVersion.ImpossibleRouter02]: 137833
+              [RouterVersion.ImpossibleRouter01]: 137825, // Uni was 101876
+              [RouterVersion.ImpossibleRouter02]: 137825
             }[routerVersion as RouterVersion]
           )
         })
@@ -544,8 +544,8 @@ describe('ImpossibleRouter01', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [RouterVersion.ImpossibleRouter01]: 137845, // Uni was 101876
-              [RouterVersion.ImpossibleRouter02]: 137845
+              [RouterVersion.ImpossibleRouter01]: 137837, // Uni was 101876
+              [RouterVersion.ImpossibleRouter02]: 137837
             }[routerVersion as RouterVersion]
           )
         })
@@ -607,8 +607,8 @@ describe('ImpossibleRouter01', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [RouterVersion.ImpossibleRouter01]: 138935, // Uni was 101876
-              [RouterVersion.ImpossibleRouter02]: 138935
+              [RouterVersion.ImpossibleRouter01]: 138927, // Uni was 101876
+              [RouterVersion.ImpossibleRouter02]: 138927
             }[routerVersion as RouterVersion]
           )
         })
@@ -664,8 +664,8 @@ describe('ImpossibleRouter01', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [RouterVersion.ImpossibleRouter01]: 104100, // Uni was 101876
-              [RouterVersion.ImpossibleRouter02]: 104100
+              [RouterVersion.ImpossibleRouter01]: 104080, // Uni was 101876
+              [RouterVersion.ImpossibleRouter02]: 104080
             }[routerVersion as RouterVersion]
           )
         })
@@ -727,8 +727,8 @@ describe('ImpossibleRouter01', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [RouterVersion.ImpossibleRouter01]: 137691, // Uni was 101876
-              [RouterVersion.ImpossibleRouter02]: 137691
+              [RouterVersion.ImpossibleRouter01]: 137660, // Uni was 101876
+              [RouterVersion.ImpossibleRouter02]: 137660
             }[routerVersion as RouterVersion]
           )
         })
@@ -791,8 +791,8 @@ describe('ImpossibleRouter01', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [RouterVersion.ImpossibleRouter01]: 138071, // Uni was 101876
-              [RouterVersion.ImpossibleRouter02]: 138071
+              [RouterVersion.ImpossibleRouter01]: 138040, // Uni was 101876
+              [RouterVersion.ImpossibleRouter02]: 138040
             }[routerVersion as RouterVersion]
           )
         })
@@ -855,8 +855,8 @@ describe('ImpossibleRouter01', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [RouterVersion.ImpossibleRouter01]: 138083, // Uni was 101876
-              [RouterVersion.ImpossibleRouter02]: 138083
+              [RouterVersion.ImpossibleRouter01]: 138052, // Uni was 101876
+              [RouterVersion.ImpossibleRouter02]: 138052
             }[routerVersion as RouterVersion]
           )
         })
@@ -919,8 +919,8 @@ describe('ImpossibleRouter01', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [RouterVersion.ImpossibleRouter01]: 139173, // Uni was 101876
-              [RouterVersion.ImpossibleRouter02]: 139173
+              [RouterVersion.ImpossibleRouter01]: 139142, // Uni was 101876
+              [RouterVersion.ImpossibleRouter02]: 139142
             }[routerVersion as RouterVersion]
           )
         })
@@ -1000,8 +1000,8 @@ describe('ImpossibleRouter01', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [RouterVersion.ImpossibleRouter01]: 107037, // Uni was 138770
-              [RouterVersion.ImpossibleRouter02]: 107037
+              [RouterVersion.ImpossibleRouter01]: 106996, // Uni was 138770
+              [RouterVersion.ImpossibleRouter02]: 106996
             }[routerVersion as RouterVersion]
           )
         })
@@ -1076,8 +1076,8 @@ describe('ImpossibleRouter01', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [RouterVersion.ImpossibleRouter01]: 122121, // Uni was 101876
-              [RouterVersion.ImpossibleRouter02]: 122121
+              [RouterVersion.ImpossibleRouter01]: 122101, // Uni was 101876
+              [RouterVersion.ImpossibleRouter02]: 122101
             }[routerVersion as RouterVersion]
           )
         })
@@ -1152,8 +1152,8 @@ describe('ImpossibleRouter01', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [RouterVersion.ImpossibleRouter01]: 117983, // Uni was 101876
-              [RouterVersion.ImpossibleRouter02]: 117983
+              [RouterVersion.ImpossibleRouter01]: 117942, // Uni was 101876
+              [RouterVersion.ImpossibleRouter02]: 117942
             }[routerVersion as RouterVersion]
           )
         })
@@ -1230,8 +1230,8 @@ describe('ImpossibleRouter01', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [RouterVersion.ImpossibleRouter01]: 110982, // Uni was 101876
-              [RouterVersion.ImpossibleRouter02]: 110982
+              [RouterVersion.ImpossibleRouter01]: 110962, // Uni was 101876
+              [RouterVersion.ImpossibleRouter02]: 110962
             }[routerVersion as RouterVersion]
           )
         })
