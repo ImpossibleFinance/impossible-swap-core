@@ -25,7 +25,8 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
     using SafeMath for uint256;
 
     address public immutable override factory;
-    address public immutable override WETH;
+    address public immutable WETHSetter;
+    address public override WETH; // Can be set by WETHSetter once only
 
     modifier ensure(uint256 deadline) {
         require(deadline >= block.timestamp, 'ImpossibleRouter: EXPIRED');
@@ -35,15 +36,28 @@ contract ImpossibleRouter02 is IImpossibleRouter02, ReentrancyGuard {
     /**
      @notice Constructor for IF Router
      @param _factory Address of IF Factory
-     @param _WETH Address of wrapped native token (WETH, WBNB etc)
+     @param _WETHSetter Address of WETHSetter 
     */
-    constructor(address _factory, address _WETH) {
+    constructor(address _factory, address _WETHSetter) {
         factory = _factory;
-        WETH = _WETH;
+        WETHSetter = _WETHSetter;
     }
 
     receive() external payable {
         assert(msg.sender == WETH); // only accept ETH via fallback from the WETH contract
+    }
+
+    /**
+     @notice Function to set weth address
+     @dev We use this logic to allow routers to have same address on every chain through create2
+     @dev Wasn't possible in previous design as WETH/WBNB/WFTM etc have different contract addresses
+     @dev Only can be set once, and only can be set by WETHSetter
+     @param _WETH The address of wrapped native token (WETH, WBNB etc)
+    */
+    function setWETH(address _WETH) public {
+        require(WETH == address(0x0), 'ImpossibleRouter: Already set');
+        require(msg.sender == WETHSetter, 'ImpossibleRouter: ?');
+        WETH = _WETH;
     }
 
     /**

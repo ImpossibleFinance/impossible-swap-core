@@ -72,7 +72,8 @@ export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Pro
 
   // deploy routers
   const router01 = await deployContract(wallet, ImpossibleRouter01, [factoryV2.address, WETH.address], overrides)
-  const router02 = await deployContract(wallet, ImpossibleRouter02, [factoryV2.address, WETH.address], overrides)
+  const router02 = await deployContract(wallet, ImpossibleRouter02, [factoryV2.address, wallet.address], overrides)
+  await router02.setWETH(WETH.address)
 
   const routerEventEmitter = await deployContract(wallet, RouterEventEmitter, [])
 

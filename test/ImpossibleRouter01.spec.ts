@@ -1001,7 +1001,7 @@ describe('ImpossibleRouter01', () => {
           expect(receipt.gasUsed).to.eq(
             {
               [RouterVersion.ImpossibleRouter01]: 106996, // Uni was 138770
-              [RouterVersion.ImpossibleRouter02]: 106996
+              [RouterVersion.ImpossibleRouter02]: 109431
             }[routerVersion as RouterVersion]
           )
         })
@@ -1077,7 +1077,7 @@ describe('ImpossibleRouter01', () => {
           expect(receipt.gasUsed).to.eq(
             {
               [RouterVersion.ImpossibleRouter01]: 122101, // Uni was 101876
-              [RouterVersion.ImpossibleRouter02]: 122101
+              [RouterVersion.ImpossibleRouter02]: 124516
             }[routerVersion as RouterVersion]
           )
         })
@@ -1153,7 +1153,7 @@ describe('ImpossibleRouter01', () => {
           expect(receipt.gasUsed).to.eq(
             {
               [RouterVersion.ImpossibleRouter01]: 117942, // Uni was 101876
-              [RouterVersion.ImpossibleRouter02]: 117942
+              [RouterVersion.ImpossibleRouter02]: 120357
             }[routerVersion as RouterVersion]
           )
         })
@@ -1231,7 +1231,7 @@ describe('ImpossibleRouter01', () => {
           expect(receipt.gasUsed).to.eq(
             {
               [RouterVersion.ImpossibleRouter01]: 110962, // Uni was 101876
-              [RouterVersion.ImpossibleRouter02]: 110962
+              [RouterVersion.ImpossibleRouter02]: 113397
             }[routerVersion as RouterVersion]
           )
         })
