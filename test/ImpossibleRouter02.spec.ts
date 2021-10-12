@@ -31,10 +31,13 @@ describe('ImpossibleRouter02', () => {
   let router: Contract
   let pair: Contract
   let factory: Contract
+  let routerUtils: Contract
+
   beforeEach(async function() {
     const fixture = await loadFixture(v2Fixture)
-    factory = fixture.factoryV2
+    factory = fixture.pairFactory
     router = fixture.router02
+    routerUtils = fixture.routerUtils
     // set whitelist router
     await factory.setRouter(router.address)
 
@@ -48,15 +51,15 @@ describe('ImpossibleRouter02', () => {
   })
 
   it('quote', async () => {
-    expect(await router.quote(bigNumberify(1), bigNumberify(100), bigNumberify(200))).to.eq(bigNumberify(2))
-    expect(await router.quote(bigNumberify(2), bigNumberify(200), bigNumberify(100))).to.eq(bigNumberify(1))
-    await expect(router.quote(bigNumberify(0), bigNumberify(100), bigNumberify(200))).to.be.revertedWith(
+    expect(await routerUtils.quote(bigNumberify(1), bigNumberify(100), bigNumberify(200))).to.eq(bigNumberify(2))
+    expect(await routerUtils.quote(bigNumberify(2), bigNumberify(200), bigNumberify(100))).to.eq(bigNumberify(1))
+    await expect(routerUtils.quote(bigNumberify(0), bigNumberify(100), bigNumberify(200))).to.be.revertedWith(
       'ImpossibleLibrary: INSUFFICIENT_AMOUNT'
     )
-    await expect(router.quote(bigNumberify(1), bigNumberify(0), bigNumberify(200))).to.be.revertedWith(
+    await expect(routerUtils.quote(bigNumberify(1), bigNumberify(0), bigNumberify(200))).to.be.revertedWith(
       'ImpossibleLibrary: INSUFFICIENT_LIQUIDITY'
     )
-    await expect(router.quote(bigNumberify(1), bigNumberify(100), bigNumberify(0))).to.be.revertedWith(
+    await expect(routerUtils.quote(bigNumberify(1), bigNumberify(100), bigNumberify(0))).to.be.revertedWith(
       'ImpossibleLibrary: INSUFFICIENT_LIQUIDITY'
     )
   })
@@ -76,11 +79,11 @@ describe('ImpossibleRouter02', () => {
       overrides
     )
 
-    await expect(router.getAmountsOut(bigNumberify(2), [token0.address])).to.be.revertedWith(
+    await expect(routerUtils.getAmountsOut(bigNumberify(2), [token0.address])).to.be.revertedWith(
       'ImpossibleLibrary: INVALID_PATH'
     )
     const path = [token0.address, token1.address]
-    expect(await router.getAmountsOut(bigNumberify(2), path)).to.deep.eq([bigNumberify(2), bigNumberify(1)])
+    expect(await routerUtils.getAmountsOut(bigNumberify(2), path)).to.deep.eq([bigNumberify(2), bigNumberify(1)])
   })
 
   it('getAmountsIn', async () => {
@@ -98,11 +101,11 @@ describe('ImpossibleRouter02', () => {
       overrides
     )
 
-    await expect(router.getAmountsIn(bigNumberify(1), [token0.address])).to.be.revertedWith(
+    await expect(routerUtils.getAmountsIn(bigNumberify(1), [token0.address])).to.be.revertedWith(
       'ImpossibleLibrary: INVALID_PATH'
     )
     const path = [token0.address, token1.address]
-    expect(await router.getAmountsIn(bigNumberify(1), path)).to.deep.eq([bigNumberify(2), bigNumberify(1)])
+    expect(await routerUtils.getAmountsIn(bigNumberify(1), path)).to.deep.eq([bigNumberify(2), bigNumberify(1)])
   })
 })
 
@@ -122,7 +125,7 @@ describe('fee-on-transfer tokens', () => {
   let pair: Contract
   beforeEach(async function() {
     const fixture = await loadFixture(v2Fixture)
-    factory = fixture.factoryV2
+    factory = fixture.pairFactory
     router = fixture.router02
     // set whitelist router
     WETH = fixture.WETH
@@ -311,15 +314,15 @@ describe('fee-on-transfer tokens: reloaded', () => {
     const fixture = await loadFixture(v2Fixture)
 
     router = fixture.router02
-    factory = fixture.factoryV2
+    factory = fixture.pairFactory
     await factory.setRouter(router.address)
 
     DTT = await deployContract(wallet, DeflatingERC20, [expandTo18Decimals(10000)])
     DTT2 = await deployContract(wallet, DeflatingERC20, [expandTo18Decimals(10000)])
 
     // make a DTT<>WETH pair
-    await fixture.factoryV2.createPair(DTT.address, DTT2.address)
-    const pairAddress = await fixture.factoryV2.getPair(DTT.address, DTT2.address)
+    await fixture.pairFactory.createPair(DTT.address, DTT2.address)
+    const pairAddress = await fixture.pairFactory.getPair(DTT.address, DTT2.address)
   })
 
   afterEach(async function() {

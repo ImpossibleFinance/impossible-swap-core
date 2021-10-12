@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity =0.7.6;
 
-import './interfaces/IImpossibleFactory.sol';
+import './interfaces/IImpossibleSwapFactory.sol';
 import './ImpossiblePair.sol';
+import './ImpossibleWrappedToken.sol';
 
 /**
     @title  Swap Factory for Impossible Swap V3
@@ -12,14 +13,12 @@ import './ImpossiblePair.sol';
     @dev    See documentation at: https://docs.impossible.finance/impossible-swap/overview
 */
 
-contract ImpossibleFactory is IImpossibleFactory {
-    bytes32 public constant INIT_CODE_PAIR_HASH = keccak256(abi.encodePacked(type(ImpossiblePair).creationCode));
-
+contract ImpossibleSwapFactory is IImpossibleSwapFactory {
     address public override feeTo;
     address public override governance;
     address public router;
-    bool whitelist;
-    mapping(address => bool) approvedTokens;
+    bool public whitelist;
+    mapping(address => bool) public approvedTokens;
 
     mapping(address => mapping(address => address)) public override getPair;
     address[] public override allPairs;

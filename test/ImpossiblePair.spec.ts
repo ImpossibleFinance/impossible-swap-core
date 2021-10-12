@@ -1,3 +1,7 @@
+//TODO: Before test, comment out line 105 in onlyGovernance modifier. This allows pools to be made stable for our tests.
+//TODO: Also, change delay of ONE_DAY to 50 instead of ONE_DAY = 24 * 60 * 60 / 3
+//TODO: These todos are left uncommented on purpose - once these actions are done, comment them and test will run without errors
+
 import chai, { expect } from 'chai'
 import { Contract } from 'ethers'
 import { solidity, MockProvider, createFixtureLoader } from 'ethereum-waffle'
@@ -415,8 +419,8 @@ describe('ImpossiblePair', () => {
     await pair.transfer(pair.address, expectedLiquidity.sub(MINIMUM_LIQUIDITY))
     await pair.burn(wallet.address, overrides)
     await pair.claimFees()
-    expect(await pair.balanceOf(other.address)).to.eq('4976323181643586162')
-    expect(await pair.totalSupply()).to.eq(MINIMUM_LIQUIDITY.add('4976323181643586162'))
+    expect(await pair.balanceOf(other.address)).to.eq('4976323181643586162') // receives
+    expect(await pair.totalSupply()).to.eq(MINIMUM_LIQUIDITY.add('4976323181643586162')) // approx 1/201 *
 
     // using 1000 here instead of the symbolic MINIMUM_LIQUIDITY because the amounts only happen to be equal...
     // ...because the initial liquidity amounts were equal

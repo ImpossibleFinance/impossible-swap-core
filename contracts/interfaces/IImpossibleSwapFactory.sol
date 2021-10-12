@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity =0.7.6;
 
-interface IImpossibleFactory {
+interface IImpossibleSwapFactory {
     event PairCreated(address indexed token0, address indexed token1, address pair, uint256);
     event UpdatedGovernance(address governance);
 

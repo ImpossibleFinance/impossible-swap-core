@@ -8,7 +8,7 @@ import './libraries/ReentrancyGuard.sol';
 
 import './interfaces/IImpossiblePair.sol';
 import './interfaces/IERC20.sol';
-import './interfaces/IImpossibleFactory.sol';
+import './interfaces/IImpossibleSwapFactory.sol';
 import './interfaces/IImpossibleCallee.sol';
 
 /**
@@ -101,7 +101,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     }
 
     modifier onlyGovernance() {
-        require(msg.sender == IImpossibleFactory(factory).governance(), 'IF: FORBIDDEN');
+        require(msg.sender == IImpossibleSwapFactory(factory).governance(), 'IF: FORBIDDEN');
         _;
     }
 
@@ -394,7 +394,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
      @return feeOn If the mint/burn fee is turned on in this pair
     */
     function _mintFee(uint256 _reserve0, uint256 _reserve1) private returns (bool feeOn) {
-        address feeTo = IImpossibleFactory(factory).feeTo();
+        address feeTo = IImpossibleSwapFactory(factory).feeTo();
         feeOn = feeTo != address(0);
         uint256 _kLast = kLast; // gas savings
         if (feeOn) {
@@ -472,7 +472,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
                 uint256 _feeRatio = withdrawalFeeRatio; // 1/201 ~= 0.4975%
                 amount0 -= amount0.div(_feeRatio);
                 amount1 -= amount1.div(_feeRatio);
-                // Takes the 0.4975% Fee of LP tokens and adds allowance to claim for the IImpossibleFactory feeTo Address
+                // Takes the 0.4975% Fee of LP tokens and adds allowance to claim for the IImpossibleSwapFactory feeTo Address
                 feesAccrued = feesAccrued.add(liquidity.div(_feeRatio));
                 _burn(address(this), liquidity.sub(liquidity.div(_feeRatio)));
             } else {
@@ -606,7 +606,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     function claimFees() external nonReentrant {
         uint256 transferAmount = feesAccrued;
         feesAccrued = 0; //Resets amount owed to claim to zero first
-        _safeTransfer(address(this), IImpossibleFactory(factory).feeTo(), transferAmount); //Tranfers owed debt to fee collection address
+        _safeTransfer(address(this), IImpossibleSwapFactory(factory).feeTo(), transferAmount); //Tranfers owed debt to fee collection address
     }
 
     /**

@@ -6,11 +6,11 @@ import { expandTo18Decimals } from './utilities'
 
 import WETH9 from '../../build/WETH9.json'
 import ERC20 from '../../build/ERC20.json'
-import ImpossibleFactory from '../../build/ImpossibleFactory.json'
-import IImpossiblePair from '../../build/IImpossiblePair.json'
+import ImpossibleSwapFactory from '../../build/ImpossibleSwapFactory.json'
+import ImpossibleWrapperFactory from '../../build/ImpossibleWrapperFactory.json'
 import ImpossiblePair from '../../build/ImpossiblePair.json'
-import ImpossibleRouter01 from '../../build/ImpossibleRouter01.json'
 import ImpossibleRouter02 from '../../build/ImpossibleRouter02.json'
+import ImpossibleUtils from '../../build/ImpossibleUtils.json'
 import RouterEventEmitter from '../../build/RouterEventEmitter.json'
 
 interface FactoryFixture {
@@ -24,7 +24,7 @@ const overrides = {
 }
 
 export async function factoryFixture(_: Web3Provider, [wallet]: Wallet[]): Promise<FactoryFixture> {
-  const factory = await deployContract(wallet, ImpossibleFactory, [wallet.address], overrides)
+  const factory = await deployContract(wallet, ImpossibleSwapFactory, [wallet.address], overrides)
   const tokenA = await deployContract(wallet, ERC20, [expandTo18Decimals(10000)], overrides)
   const tokenB = await deployContract(wallet, ERC20, [expandTo18Decimals(10000)], overrides)
   const token0 = tokenA.address.toLowerCase() < tokenB.address.toLowerCase() ? tokenA : tokenB
@@ -53,9 +53,10 @@ interface V2Fixture {
   tokenB: Contract
   WETH: Contract
   WETHPartner: Contract
-  factoryV2: Contract
-  router01: Contract
+  pairFactory: Contract
+  wrapFactory: Contract
   router02: Contract
+  routerUtils: Contract
   routerEventEmitter: Contract
   router: Contract
 }
@@ -67,13 +68,21 @@ export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Pro
   const WETH = await deployContract(wallet, WETH9)
   const WETHPartner = await deployContract(wallet, ERC20, [expandTo18Decimals(10000)])
 
-  // deploy V2
-  const factoryV2 = await deployContract(wallet, ImpossibleFactory, [wallet.address], overrides)
+  // deploy pair factory and approve all trading tokens
+  const pairFactory = await deployContract(wallet, ImpossibleSwapFactory, [wallet.address], overrides)
+  await pairFactory.changeTokenAccess(tokenA.address, true);
+  await pairFactory.changeTokenAccess(tokenB.address, true);
+  await pairFactory.changeTokenAccess(WETH.address, true);
+  await pairFactory.changeTokenAccess(WETHPartner.address, true);
+
+  // deploy wrap
+  const wrapFactory = await deployContract(wallet, ImpossibleWrapperFactory, [wallet.address])
 
   // deploy routers
-  const router01 = await deployContract(wallet, ImpossibleRouter01, [factoryV2.address, WETH.address], overrides)
-  const router02 = await deployContract(wallet, ImpossibleRouter02, [factoryV2.address, wallet.address], overrides)
+  const router02 = await deployContract(wallet, ImpossibleRouter02, [pairFactory.address, wrapFactory.address, wallet.address], overrides)
   await router02.setWETH(WETH.address)
+
+  const routerUtils = await deployContract(wallet, ImpossibleUtils, [pairFactory.address])
 
   const routerEventEmitter = await deployContract(wallet, RouterEventEmitter, [])
 
@@ -82,10 +91,11 @@ export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Pro
     tokenB,
     WETH,
     WETHPartner,
-    factoryV2,
-    router01,
+    pairFactory,
+    wrapFactory,
     router02,
-    router: router02, // the default router, 01 had a minor bug,
+    routerUtils,
+    router: router02, // not using router01
     routerEventEmitter
   }
 }
