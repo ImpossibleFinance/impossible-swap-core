@@ -5,6 +5,7 @@ import './ImpossibleERC20.sol';
 
 import './libraries/Math.sol';
 import './libraries/ReentrancyGuard.sol';
+import './libraries/ImpossibleUtilities.sol';
 
 import './interfaces/IImpossiblePair.sol';
 import './interfaces/IERC20.sol';
@@ -40,13 +41,9 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     uint16 private tradeFee = 30;
 
     /**
-     @dev ratioStart/ratioEnd are hard stops. When ratios of tokens in pools go above
-          ratioEnd or below ratioStart, trade in the direction that further imbalances
-          pool is halted. Trades that reduce imbalance will still be allowed.
-     @dev This is to control amount of IL faced by LPs on a pool-by-pool basis
+     @dev tradeState Tracks what directional trades are allowed for this pair.
     */
-    uint8 public ratioStart;
-    uint8 public ratioEnd;
+    ImpossibleUtilities.TradeState private tradeState;
 
     bool private isXybk;
 
@@ -78,12 +75,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     */
     uint256 public startBlockChange;
     uint256 public endBlockChange;
-
-    /**
-     @dev feesAccrued is used to batch fees to Impossible to reduce cost for users/LPs
-    */
-    uint256 private feesAccrued;
-
+    
     /**
      @dev withdrawalFeeRatio is the fee collected on burn. Init as 1/201=0.4795% fee (if feeOn)
     */
@@ -108,10 +100,12 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     /**
      @notice Gets the fee per swap in basis points, as well as if this pair is uni or xybk
      @return _tradeFee Fee per swap in basis points
+     @return _tradeState What trades are allowed for this pair
      @return _isXybk Boolean if this swap is using uniswap or xybk
     */
-    function getFeeAndXybk() external view override returns (uint256 _tradeFee, bool _isXybk) {
+    function getPairSettings() external view override returns (uint16 _tradeFee, ImpossibleUtilities.TradeState _tradeState, bool _isXybk) {
         _tradeFee = tradeFee;
+        _tradeState = tradeState;
         _isXybk = isXybk;
     }
 
@@ -217,25 +211,17 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
      @notice Switches pool from uniswap invariant to xybk invariant
      @dev Can only be called by IF governance
      @dev Requires the pool to be uniswap invariant currently
-     @dev _ratioStart and _ratioEnd must be between 0 and 100
-     @param _ratioStart If token ratios in pool are below this, trade that further imbalances pool is halted
-     @param _ratioEnd If token ratios in pool are above this, trade that further imbalances pool is halted
      @param _newBoost0 The new boost0
      @param _newBoost1 The new boost1
     */
     function makeXybk(
-        uint8 _ratioStart,
-        uint8 _ratioEnd,
         uint32 _newBoost0,
         uint32 _newBoost1
     ) external onlyGovernance nonReentrant {
         require(!isXybk, 'IF: IS_ALREADY_XYBK');
-        require(_ratioStart <= 100 && _ratioEnd <= 100, 'IF: INVALID_RATIO');
         _updateBoost(_newBoost0, _newBoost1);
-        ratioStart = _ratioStart;
-        ratioEnd = _ratioEnd;
         isXybk = true;
-        emit changeInvariant(isXybk, _ratioStart, _ratioEnd);
+        emit changeInvariant(isXybk, _newBoost0, _newBoost1);
     }
 
     /**
@@ -250,9 +236,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         isXybk = false;
         oldBoost0 = 1; // Set boost to 1
         oldBoost1 = 1; // xybk with boost=1 is just xy=k formula
-        ratioStart = 0;
-        ratioEnd = 100;
-        emit changeInvariant(isXybk, ratioStart, ratioEnd);
+        emit changeInvariant(isXybk, newBoost0, newBoost1);
     }
 
     /**
@@ -282,19 +266,14 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     }
 
     /**
-     @notice Setter function for hard stop ratios in the pair
+     @notice Setter function for trade state for this pair
      @dev Can only be called by IF governance
-     @dev _ratioStart and _ratioEnd must be between 0 and 100
-     @dev Note: Allows halting trade in pools through setting _ratioStart > _ratioEnd
-     @param _ratioStart If token ratios in pool are below this, trade that further imbalances pool is halted
-     @param _ratioEnd If token ratios in pool are above this, trade that further imbalances pool is halted
+     @param _tradeState See line 45 for TradeState enum settings
     */
-    function updateHardstops(uint8 _ratioStart, uint8 _ratioEnd) external onlyGovernance nonReentrant {
+    function updateTradeState(ImpossibleUtilities.TradeState _tradeState) external onlyGovernance nonReentrant {
         require(isXybk, 'IF: IS_CURRENTLY_UNI');
-        require(_ratioStart <= 100 && _ratioEnd <= 100, 'IF: INVALID_RATIO');
-        ratioStart = _ratioStart;
-        ratioEnd = _ratioEnd;
-        emit updatedHardstops(_ratioStart, _ratioEnd);
+        tradeState = _tradeState;
+        emit updatedTradeState(_tradeState);
     }
 
     /**
@@ -465,7 +444,6 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
             uint256 _totalSupply = totalSupply;
             amount0 = liquidity.mul(balance0) / _totalSupply;
             amount1 = liquidity.mul(balance1) / _totalSupply;
-
             require(amount0 > 0 && amount1 > 0, 'IF: INSUFFICIENT_LIQUIDITY_BURNED');
 
             if (feeOn) {
@@ -473,12 +451,12 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
                 amount0 -= amount0.div(_feeRatio);
                 amount1 -= amount1.div(_feeRatio);
                 // Takes the 0.4975% Fee of LP tokens and adds allowance to claim for the IImpossibleSwapFactory feeTo Address
-                feesAccrued = feesAccrued.add(liquidity.div(_feeRatio));
-                _burn(address(this), liquidity.sub(liquidity.div(_feeRatio)));
+                uint256 transferAmount = liquidity.div(_feeRatio);
+                _safeTransfer(address(this), IImpossibleSwapFactory(factory).feeTo(), transferAmount);
+                _burn(address(this), liquidity.sub(transferAmount));
             } else {
                 _burn(address(this), liquidity);
             }
-
             _safeTransfer(_token0, to, amount0);
             _safeTransfer(_token1, to, amount1);
         }
@@ -496,7 +474,6 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
      @notice Performs a swap operation. Tokens must already be sent to contract
      @dev Input/output amount of tokens must >0 and pool needs to have sufficient liquidity
      @dev Openzeppelin reentrancy guards are used
-     @dev Swap is reverted if it exceeds lower or upper hard stops
      @dev Post-swap invariant check is performed (either uni or xybk)
      @param amount0Out The amount of token0's to output
      @param amount1Out The amount of token1's to output
@@ -511,7 +488,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     ) external override onlyIFRouter nonReentrant {
         require(amount0Out > 0 || amount1Out > 0, 'IF: INSUFFICIENT_OUTPUT_AMOUNT');
         (uint256 _reserve0, uint256 _reserve1) = getReserves(); // gas savings
-        require(amount0Out < _reserve0 && amount1Out < _reserve1, 'IF: INSUFFICIENT_LIQUIDITY');
+        require(amount0Out <= _reserve0 && amount1Out <= _reserve1, 'IF: INSUFFICIENT_LIQUIDITY');
 
         uint256 balance0;
         uint256 balance1;
@@ -535,13 +512,13 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
             // Avoid stack too deep errors
             bool _isXybk = isXybk;
             if (_isXybk) {
-                bool side = balance0 >= balance1;
-                uint256 ratio = side ? ratioStart : ratioEnd;
-                if (side && ratio > 0) {
-                    require(balance1.mul(ratio) < balance0.mul(100 - ratio), 'IF: EXCEED_UPPER_STOP');
-                } else if (!side && ratio < 100) {
-                    require(balance0.mul(ratio) > balance1.mul(100 - ratio), 'IF: EXCEED_LOWER_STOP');
-                }
+                ImpossibleUtilities.TradeState _tradeState = tradeState;
+                require(
+                    (_tradeState == ImpossibleUtilities.TradeState.SELL_ALL) || 
+                    (_tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_0 && amount1Out == 0) || 
+                    (_tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_1 && amount0Out == 0),
+                    'IF: TRADE_NOT_ALLOWED'
+                );
             }
             uint256 _tradeFee = uint256(tradeFee);
             uint256 balance0Adjusted = balance0.mul(10000).sub(amount0In.mul(_tradeFee)); // tradeFee amt of basis pts
@@ -596,17 +573,6 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         uint256 boost = (_balance0 > _balance1) ? _boost0.sub(1) : _boost1.sub(1);
         uint256 innerTerm = boost.mul(sqrtOldK);
         return (_balance0.add(innerTerm)).mul(_balance1.add(innerTerm)).div((boost.add(1))**2) >= _oldK;
-    }
-
-    /**
-     @notice Claims LP tokens to IF governance based on accumulated mint/burn fees
-     @dev More details on math at: https://docs.impossible.finance/impossible-swap/swap-math
-     @dev Openzeppelin reentrancy guards are used
-    */
-    function claimFees() external nonReentrant {
-        uint256 transferAmount = feesAccrued;
-        feesAccrued = 0; //Resets amount owed to claim to zero first
-        _safeTransfer(address(this), IImpossibleSwapFactory(factory).feeTo(), transferAmount); //Tranfers owed debt to fee collection address
     }
 
     /**

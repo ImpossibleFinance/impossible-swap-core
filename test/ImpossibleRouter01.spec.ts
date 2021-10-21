@@ -175,7 +175,6 @@ describe('Swap Tests', () => {
         const ETHAmount = expandTo18Decimals(4)
 
         const expectedLiquidity = expandTo18Decimals(2)
-        const WETHPairToken0 = await WETHPair.token0()
         await underlyingWETHPartner.approve(router.address, MaxUint256)
         expect(
           await router.addLiquidityETH(WETHPartner.address, WETHPartnerAmount, 0, 0, wallet.address, MaxUint256, {
@@ -209,11 +208,13 @@ describe('Swap Tests', () => {
         expect(await pair.balanceOf(wallet.address)).to.eq(0)
         const totalSupplyToken0 = await underlyingToken0.totalSupply()
         const totalSupplyToken1 = await underlyingToken1.totalSupply()
-        //expect(await underlyingToken0.balanceOf(wallet.address)).to.eq(
-        //token0.address == underlyingToken0.address ? totalSupplyToken0.sub(500) : totalSupplyToken0.sub(500).mul(6))
-        //expect(await underlyingToken1.balanceOf(wallet.address)).to.eq(
-        //token0.address == underlyingToken0.address ? totalSupplyToken1.sub(2000).mul(6) : totalSupplyToken1.sub(2000)
-        //)
+        expect(await underlyingToken0.balanceOf(wallet.address)).to.eq(
+          token0.address == underlyingToken0.address ? totalSupplyToken0.sub(500) : totalSupplyToken0.sub(1500)
+        )
+        console.log("in between")
+        expect(await underlyingToken1.balanceOf(wallet.address)).to.eq(
+          token1.address == underlyingToken1.address ? totalSupplyToken1.sub(2000) : totalSupplyToken1.sub(6000)
+        )
       })
 
       it('removeLiquidityETH', async () => {

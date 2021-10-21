@@ -1,6 +1,7 @@
 /// SPDX-License-Identifier: GPL-3
 pragma solidity >=0.5.0;
 
+import './ImpossibleUtilities.sol';
 import '../interfaces/IImpossiblePair.sol';
 import '../interfaces/IERC20.sol';
 
@@ -140,8 +141,16 @@ library ImpossibleLibrary {
         {
             // Avoid stack too deep
             uint256 fee;
-            (fee, isXybk) = IImpossiblePair(pair).getFeeAndXybk();
+            ImpossibleUtilities.TradeState tradeState;
+            (fee, tradeState, isXybk) = IImpossiblePair(pair).getPairSettings();
             amountInPostFee = amountIn.mul(10000 - fee);
+            require(
+                (tradeState == ImpossibleUtilities.TradeState.SELL_ALL) || 
+                (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_0 && !isMatch) || 
+                (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_1 && isMatch),
+                'ImpossibleLibrary: TRADE_NOT_ALLOWED'
+            );
+
         }
 
         /// If xybk invariant, set reserveIn/reserveOut to artificial liquidity instead of actual liquidity
@@ -211,7 +220,14 @@ library ImpossibleLibrary {
                 address pair;
                 (reserveIn, reserveOut, pair) = getReserves(factory, tokenIn, tokenOut);
                 require(reserveIn > 0 && reserveOut > 0, 'ImpossibleLibrary: INSUFFICIENT_LIQUIDITY');
-                (fee, isXybk) = IImpossiblePair(pair).getFeeAndXybk();
+                ImpossibleUtilities.TradeState tradeState;
+                (fee, tradeState, isXybk) = IImpossiblePair(pair).getPairSettings();
+                require(
+                    (tradeState == ImpossibleUtilities.TradeState.SELL_ALL) || 
+                    (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_0 && !isMatch) || 
+                    (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_1 && isMatch),
+                    'ImpossibleLibrary: TRADE_NOT_ALLOWED'
+                );
                 (boost0, boost1) = IImpossiblePair(pair).calcBoost();
             }
             if (isXybk) {
@@ -275,7 +291,14 @@ library ImpossibleLibrary {
             uint256 fee;
             uint256 balanceIn = IERC20(tokenIn).balanceOf(address(pair));
             require(balanceIn > reserveIn, 'ImpossibleLibrary: INSUFFICIENT_INPUT_AMOUNT');
-            (fee, isXybk) = IImpossiblePair(pair).getFeeAndXybk();
+            ImpossibleUtilities.TradeState tradeState;
+            (fee, tradeState, isXybk) = IImpossiblePair(pair).getPairSettings();
+            require(
+                (tradeState == ImpossibleUtilities.TradeState.SELL_ALL) || 
+                (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_0 && !isMatch) || 
+                (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_1 && isMatch),
+                'ImpossibleLibrary: TRADE_NOT_ALLOWED'
+            );
             amountInPostFee = (balanceIn.sub(reserveIn)).mul(10000 - fee);
         }
         /// If xybk invariant, set reserveIn/reserveOut to artificial liquidity instead of actual liquidity
