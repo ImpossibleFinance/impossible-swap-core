@@ -75,7 +75,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     */
     uint256 public startBlockChange;
     uint256 public endBlockChange;
-    
+
     /**
      @dev withdrawalFeeRatio is the fee collected on burn. Init as 1/201=0.4795% fee (if feeOn)
     */
@@ -103,7 +103,16 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
      @return _tradeState What trades are allowed for this pair
      @return _isXybk Boolean if this swap is using uniswap or xybk
     */
-    function getPairSettings() external view override returns (uint16 _tradeFee, ImpossibleUtilities.TradeState _tradeState, bool _isXybk) {
+    function getPairSettings()
+        external
+        view
+        override
+        returns (
+            uint16 _tradeFee,
+            ImpossibleUtilities.TradeState _tradeState,
+            bool _isXybk
+        )
+    {
         _tradeFee = tradeFee;
         _tradeState = tradeState;
         _isXybk = isXybk;
@@ -214,10 +223,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
      @param _newBoost0 The new boost0
      @param _newBoost1 The new boost1
     */
-    function makeXybk(
-        uint32 _newBoost0,
-        uint32 _newBoost1
-    ) external onlyGovernance nonReentrant {
+    function makeXybk(uint32 _newBoost0, uint32 _newBoost1) external onlyGovernance nonReentrant {
         require(!isXybk, 'IF: IS_ALREADY_XYBK');
         _updateBoost(_newBoost0, _newBoost1);
         isXybk = true;
@@ -514,9 +520,9 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
             if (_isXybk) {
                 ImpossibleUtilities.TradeState _tradeState = tradeState;
                 require(
-                    (_tradeState == ImpossibleUtilities.TradeState.SELL_ALL) || 
-                    (_tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_0 && amount1Out == 0) || 
-                    (_tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_1 && amount0Out == 0),
+                    (_tradeState == ImpossibleUtilities.TradeState.SELL_ALL) ||
+                        (_tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_0 && amount1Out == 0) ||
+                        (_tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_1 && amount0Out == 0),
                     'IF: TRADE_NOT_ALLOWED'
                 );
             }

@@ -59,7 +59,14 @@ interface IImpossiblePair is IImpossibleERC20 {
 
     function sync() external;
 
-    function getPairSettings() external view returns (uint16, ImpossibleUtilities.TradeState, bool); // Uses single storage slot, save gas
+    function getPairSettings()
+        external
+        view
+        returns (
+            uint16,
+            ImpossibleUtilities.TradeState,
+            bool
+        ); // Uses single storage slot, save gas
 
     function delay() external view returns (uint256); // Amount of time delay required before any change to boost etc, denoted in seconds
 

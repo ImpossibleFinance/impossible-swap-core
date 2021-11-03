@@ -145,12 +145,11 @@ library ImpossibleLibrary {
             (fee, tradeState, isXybk) = IImpossiblePair(pair).getPairSettings();
             amountInPostFee = amountIn.mul(10000 - fee);
             require(
-                (tradeState == ImpossibleUtilities.TradeState.SELL_ALL) || 
-                (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_0 && !isMatch) || 
-                (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_1 && isMatch),
+                (tradeState == ImpossibleUtilities.TradeState.SELL_ALL) ||
+                    (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_0 && !isMatch) ||
+                    (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_1 && isMatch),
                 'ImpossibleLibrary: TRADE_NOT_ALLOWED'
             );
-
         }
 
         /// If xybk invariant, set reserveIn/reserveOut to artificial liquidity instead of actual liquidity
@@ -223,9 +222,9 @@ library ImpossibleLibrary {
                 ImpossibleUtilities.TradeState tradeState;
                 (fee, tradeState, isXybk) = IImpossiblePair(pair).getPairSettings();
                 require(
-                    (tradeState == ImpossibleUtilities.TradeState.SELL_ALL) || 
-                    (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_0 && !isMatch) || 
-                    (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_1 && isMatch),
+                    (tradeState == ImpossibleUtilities.TradeState.SELL_ALL) ||
+                        (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_0 && !isMatch) ||
+                        (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_1 && isMatch),
                     'ImpossibleLibrary: TRADE_NOT_ALLOWED'
                 );
                 (boost0, boost1) = IImpossiblePair(pair).calcBoost();
@@ -294,9 +293,9 @@ library ImpossibleLibrary {
             ImpossibleUtilities.TradeState tradeState;
             (fee, tradeState, isXybk) = IImpossiblePair(pair).getPairSettings();
             require(
-                (tradeState == ImpossibleUtilities.TradeState.SELL_ALL) || 
-                (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_0 && !isMatch) || 
-                (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_1 && isMatch),
+                (tradeState == ImpossibleUtilities.TradeState.SELL_ALL) ||
+                    (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_0 && !isMatch) ||
+                    (tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_1 && isMatch),
                 'ImpossibleLibrary: TRADE_NOT_ALLOWED'
             );
             amountInPostFee = (balanceIn.sub(reserveIn)).mul(10000 - fee);

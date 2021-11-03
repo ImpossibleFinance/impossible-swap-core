@@ -54,7 +54,7 @@ describe('ImpossiblePair', () => {
     const token1Amount = expandTo18Decimals(4)
     await token0.transfer(pair.address, token0Amount)
     await token1.transfer(pair.address, token1Amount)
-    await pair.makeXybk(20, 80, 10, 10) // ratiostart=20, ratioend=80, boost0=10, boost1=10
+    await pair.makeXybk(10, 10) // boost0=10, boost1=10
 
     const expectedLiquidity = expandTo18Decimals(2)
     await expect(pair.mint(wallet.address, overrides))
@@ -81,7 +81,7 @@ describe('ImpossiblePair', () => {
     const token0Amount = expandTo18Decimals(3)
     const token1Amount = expandTo18Decimals(3)
     await addLiquidity(token0Amount, token1Amount)
-    await pair.makeXybk(20, 80, 10, 10) // ratiostart=20, ratioend=80, boost0=10, boost1=10
+    await pair.makeXybk(10, 10) // boost0=10, boost1=10
 
     const expectedLiquidity = expandTo18Decimals(3)
     await pair.transfer(pair.address, expectedLiquidity.sub(MINIMUM_LIQUIDITY))
@@ -144,7 +144,7 @@ describe('ImpossiblePair', () => {
   ].map(a => a.map(n => (typeof n === 'string' ? bigNumberify(n) : expandTo18Decimals(n))))
   ImpossibleswapTestCases.forEach((swapTestCase, i) => {
     it(`xybk slippage test:${i}`, async () => {
-      await pair.makeXybk(0, 100, 10, 10) // ratiostart=20, ratioend=80, boost0=10, boost1=10
+      await pair.makeXybk(10, 10) // boost0=10, boost1=10
       t = (await provider.getBlock('latest')).timestamp
       for (var i = 0; i < ONE_DAY; i++) {
         await mineBlock(provider, ++t)
@@ -191,7 +191,7 @@ describe('ImpossiblePair', () => {
     const token0Amount = expandTo18Decimals(5)
     const token1Amount = expandTo18Decimals(10)
     await addLiquidity(token0Amount, token1Amount)
-    await pair.makeXybk(20, 80, 10, 10) // ratiostart=20, ratioend=80, boost0=10, boost1=10
+    await pair.makeXybk(10, 10) // boost0=10, boost1=10
     t = (await provider.getBlock('latest')).timestamp
     for (var i = 0; i < ONE_DAY; i++) {
       await mineBlock(provider, ++t)
@@ -222,7 +222,7 @@ describe('ImpossiblePair', () => {
     const token0Amount = expandTo18Decimals(50)
     const token1Amount = expandTo18Decimals(100)
     await addLiquidity(token0Amount, token1Amount)
-    await pair.makeXybk(20, 80, 10, 10)
+    await pair.makeXybk(10, 10)
     t = (await provider.getBlock('latest')).timestamp
     for (var i = 0; i < ONE_DAY - 1; i++) {
       await mineBlock(provider, ++t)
@@ -269,7 +269,7 @@ describe('ImpossiblePair', () => {
     await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
     const tx = await pair.swap(swapAmount, 0, wallet.address, '0x', overrides)
     const receipt = await tx.wait()
-    expect(receipt.gasUsed).to.eq(65211) // v2 uni was 73462
+    expect(receipt.gasUsed).to.eq(65194) // v2 uni was 73462
   })
 
   // Modified test to swap 1:1 token, just to check gas prices of swap
@@ -277,7 +277,7 @@ describe('ImpossiblePair', () => {
     const token0Amount = expandTo18Decimals(10)
     const token1Amount = expandTo18Decimals(5)
     await addLiquidity(token0Amount, token1Amount)
-    await pair.makeXybk(20, 80, 10, 10) // ratiostart=20, ratioend=80, boost0=10, boost1=10
+    await pair.makeXybk(10, 10) // boost0=10, boost1=10
     t = (await provider.getBlock('latest')).timestamp
     for (var i = 0; i < ONE_DAY; i++) {
       await mineBlock(provider, ++t)
@@ -289,7 +289,7 @@ describe('ImpossiblePair', () => {
     await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
     const tx = await pair.swap(swapAmount, 0, wallet.address, '0x', overrides) // Testing gas fee
     const receipt = await tx.wait()
-    expect(receipt.gasUsed).to.eq(88530)
+    expect(receipt.gasUsed).to.eq(88204)
   })
 
   interface linInterpolateTestCase {
@@ -339,9 +339,9 @@ describe('ImpossiblePair', () => {
       let startBlock: number
       let currBlock: number
       startBlock = (await provider.getBlock('latest')).number
-      await expect(pair.makeXybk(20, 80, boostVals.b1, boostVals.b2))
+      await expect(pair.makeXybk(boostVals.b1, boostVals.b2))
         .to.emit(pair, 'changeInvariant')
-        .withArgs(true, 20, 80)
+        .withArgs(true, boostVals.b1, boostVals.b2)
         .to.emit(pair, 'updatedBoost')
         .withArgs(1, 1, boostVals.b1, boostVals.b2, startBlock + 1, startBlock + 51)
 
@@ -359,9 +359,9 @@ describe('ImpossiblePair', () => {
       // For 1st case, test interpolate downwards
       if (boost._boost0.toNumber() == 51) {
         startBlock = (await provider.getBlock('latest')).number
-        await expect(pair.makeXybk(20, 80, 1, 1))
+        await expect(pair.makeXybk(1, 1))
           .to.emit(pair, 'changeInvariant')
-          .withArgs(true, 20, 80)
+          .withArgs(true, boostVals.b1, boostVals.b1)
           .to.emit(pair, 'updatedBoost')
           .withArgs(boostVals.b1, boostVals.b2, 1, 1, startBlock + 1, startBlock + 51)
 
@@ -418,7 +418,6 @@ describe('ImpossiblePair', () => {
     const expectedLiquidity = expandTo18Decimals(1000)
     await pair.transfer(pair.address, expectedLiquidity.sub(MINIMUM_LIQUIDITY))
     await pair.burn(wallet.address, overrides)
-    await pair.claimFees()
     expect(await pair.balanceOf(other.address)).to.eq('4976323181643586162') // receives
     expect(await pair.totalSupply()).to.eq(MINIMUM_LIQUIDITY.add('4976323181643586162')) // approx 1/201 *
 
