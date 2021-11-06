@@ -381,20 +381,20 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     function _mintFee(uint256 _reserve0, uint256 _reserve1) private returns (bool feeOn) {
         address feeTo = IImpossibleSwapFactory(factory).feeTo();
         feeOn = feeTo != address(0);
-        uint256 _kLast = kLast; // gas savings
+        uint256 oldK = kLast; // gas savings
         if (feeOn) {
-            if (_kLast != 0) {
-                uint256 rootK =
-                    isXybk ? Math.sqrt(_xybkComputeK(_reserve0, _reserve1)) : Math.sqrt(_reserve0.mul(_reserve1));
-                uint256 rootKLast = Math.sqrt(_kLast);
-                if (rootK > rootKLast) {
-                    uint256 numerator = totalSupply.mul(rootK.sub(rootKLast)).mul(4);
-                    uint256 denominator = rootK.add(rootKLast.mul(4));
+            if (oldK != 0) {
+                uint256 newRootK =
+                    isXybk ? Math.sqrt(xybkComputeK(_reserve0, _reserve1)) : Math.sqrt(_reserve0.mul(_reserve1));
+                uint256 oldRootK = Math.sqrt(oldK);
+                if (newRootK > oldRootK) {
+                    uint256 numerator = totalSupply.mul(newRootK.sub(oldRootK)).mul(4);
+                    uint256 denominator = newRootK.add(oldRootK.mul(4));
                     uint256 liquidity = numerator / denominator;
                     if (liquidity > 0) _mint(feeTo, liquidity);
                 }
             }
-        } else if (_kLast != 0) {
+        } else if (oldK != 0) {
             kLast = 0;
         }
     }
@@ -425,7 +425,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         _mint(to, liquidity);
 
         _update(balance0, balance1);
-        if (feeOn) kLast = isXybk ? _xybkComputeK(balance0, balance1) : balance0.mul(balance1);
+        if (feeOn) kLast = isXybk ? xybkComputeK(balance0, balance1) : balance0.mul(balance1);
         emit Mint(msg.sender, amount0, amount1);
     }
 
@@ -471,7 +471,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
             balance0 = IERC20(_token0).balanceOf(address(this));
             balance1 = IERC20(_token1).balanceOf(address(this));
             _update(balance0, balance1);
-            if (feeOn) kLast = isXybk ? _xybkComputeK(balance0, balance1) : balance0.mul(balance1);
+            if (feeOn) kLast = isXybk ? xybkComputeK(balance0, balance1) : balance0.mul(balance1);
         }
         emit Burn(msg.sender, amount0, amount1, to);
     }
@@ -517,7 +517,11 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         {
             // Avoid stack too deep errors
             bool _isXybk = isXybk;
+            uint256 _tradeFee = uint256(tradeFee);
+            uint256 balance0Adjusted = balance0.mul(10000).sub(amount0In.mul(_tradeFee)); // tradeFee amt of basis pts
+            uint256 balance1Adjusted = balance1.mul(10000).sub(amount1In.mul(_tradeFee)); // tradeFee amt of basis pts
             if (_isXybk) {
+                // Check if trade is legal
                 ImpossibleLibrary.TradeState _tradeState = tradeState;
                 require(
                     (_tradeState == ImpossibleLibrary.TradeState.SELL_ALL) ||
@@ -525,19 +529,19 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
                         (_tradeState == ImpossibleLibrary.TradeState.SELL_TOKEN_1 && amount0Out == 0),
                     'IF: TRADE_NOT_ALLOWED'
                 );
-            }
-            uint256 _tradeFee = uint256(tradeFee);
-            uint256 balance0Adjusted = balance0.mul(10000).sub(amount0In.mul(_tradeFee)); // tradeFee amt of basis pts
-            uint256 balance1Adjusted = balance1.mul(10000).sub(amount1In.mul(_tradeFee)); // tradeFee amt of basis pts
-            _isXybk
-                ? require(
-                    _xybkCheckK(balance0Adjusted, balance1Adjusted, _xybkComputeK(_reserve0, _reserve1).mul(10000**2)),
+
+                uint256 scaledOldK = xybkComputeK(_reserve0, _reserve1).mul(10000**2);
+                (uint256 boost0, uint256 boost1) = calcBoost();
+                require(
+                    ImpossibleLibrary.xybkCheckK(boost0, boost1, balance0Adjusted, balance1Adjusted, scaledOldK),
                     'IF: INSUFFICIENT_XYBK_K'
-                )
-                : require(
+                );
+            } else {
+                require(
                     balance0Adjusted.mul(balance1Adjusted) >= _reserve0.mul(_reserve1).mul(10000**2),
                     'IF: INSUFFICIENT_UNI_K'
                 );
+            }
         }
 
         _update(balance0, balance1);
@@ -545,40 +549,16 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
     }
 
-    /**
-     @notice Internal function to compute the K value for an xybk pair based on token balances and boost
-     @dev More details on math at: https://docs.impossible.finance/impossible-swap/swap-math
-     @param _balance0 Current state of balance0 in contract
-     @param _balance1 Current state of balance1 in contract
-     @return k Value of K invariant
-    */
-    function _xybkComputeK(uint256 _balance0, uint256 _balance1) private view returns (uint256 k) {
+    /** 
+     @notice Calculates xybk K value
+     @dev Uses library function, same as router
+     @param _reserve0 Balance of token0 in the pool
+     @param _reserve1 Balance of token1 in the pool
+     @return k The k value given these reserves and boost values
+     */
+    function xybkComputeK(uint256 _reserve0, uint256 _reserve1) internal view returns (uint256 k) {
         (uint256 _boost0, uint256 _boost1) = calcBoost();
-        uint256 boost = (_balance0 > _balance1) ? _boost0.sub(1) : _boost1.sub(1);
-        uint256 denom = boost.mul(2).add(1); // 1+2*boost
-        uint256 term = boost.mul(_balance0.add(_balance1)).div(denom.mul(2)); // boost*(x+y)/(2+4*boost)
-        k = (Math.sqrt(term**2 + _balance0.mul(_balance1).div(denom)) + term)**2;
-    }
-
-    /**
-     @notice Performing K invariant check through an approximation from old K
-     @dev More details on math at: https://docs.impossible.finance/impossible-swap/swap-math
-     @dev If K_new >= K_old, correctness should still hold
-     @param _balance0 Current state of balance0 in contract
-     @param _balance1 Current state of balance1 in contract
-     @param _oldK The K value pre-swap
-     @return bool Whether the new balances satisfy the K check for xybk
-    */
-    function _xybkCheckK(
-        uint256 _balance0,
-        uint256 _balance1,
-        uint256 _oldK
-    ) private view returns (bool) {
-        uint256 sqrtOldK = Math.sqrt(_oldK);
-        (uint256 _boost0, uint256 _boost1) = calcBoost();
-        uint256 boost = (_balance0 > _balance1) ? _boost0.sub(1) : _boost1.sub(1);
-        uint256 innerTerm = boost.mul(sqrtOldK);
-        return (_balance0.add(innerTerm)).mul(_balance1.add(innerTerm)).div((boost.add(1))**2) >= _oldK;
+        k = ImpossibleLibrary.xybkComputeK(_boost0, _boost1, _reserve0, _reserve1);
     }
 
     /**

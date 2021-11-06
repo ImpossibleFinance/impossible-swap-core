@@ -98,6 +98,51 @@ library ImpossibleLibrary {
     }
 
     /**
+     @notice Internal function to compute the K value for an xybk pair based on token balances and boost
+     @dev More details on math at: https://docs.impossible.finance/impossible-swap/swap-math
+     @param boost0 Current boost0 in pair
+     @param boost1 Current boost1 in pair
+     @param balance0 Current state of balance0 in pair
+     @param balance1 Current state of balance1 in pair
+     @return k Value of K invariant
+    */
+    function xybkComputeK(
+        uint256 boost0,
+        uint256 boost1,
+        uint256 balance0,
+        uint256 balance1
+    ) internal pure returns (uint256 k) {
+        uint256 boost = (balance0 > balance1) ? boost0.sub(1) : boost1.sub(1);
+        uint256 denom = boost.mul(2).add(1); // 1+2*boost
+        uint256 term = boost.mul(balance0.add(balance1)).div(denom.mul(2)); // boost*(x+y)/(2+4*boost)
+        k = (Math.sqrt(term**2 + balance0.mul(balance1).div(denom)) + term)**2;
+    }
+
+    /**
+     @notice Performing K invariant check through an approximation from old K
+     @dev More details on math at: https://docs.impossible.finance/impossible-swap/swap-math
+     @dev If K_new >= K_old, correctness should still hold
+     @param boost0 Current boost0 in pair
+     @param boost1 Current boost1 in pair
+     @param balance0 Current state of balance0 in pair
+     @param balance1 Current state of balance1 in pair
+     @param oldK The pre-swap K value
+     @return bool Whether the new balances satisfy the K check for xybk
+    */
+    function xybkCheckK(
+        uint256 boost0,
+        uint256 boost1,
+        uint256 balance0,
+        uint256 balance1,
+        uint256 oldK
+    ) internal pure returns (bool) {
+        uint256 oldSqrtK = Math.sqrt(oldK);
+        uint256 boost = (balance0 > balance1) ? boost0.sub(1) : boost1.sub(1);
+        uint256 innerTerm = boost.mul(oldSqrtK);
+        return (balance0.add(innerTerm)).mul(balance1.add(innerTerm)).div((boost.add(1))**2) >= oldK;
+    }
+
+    /**
      @notice Internal helper function for calculating artificial liquidity
      @dev More details on math at: https://docs.impossible.finance/impossible-swap/swap-math
      @param _boost The boost variable on the correct side for the pair contract
@@ -156,7 +201,10 @@ library ImpossibleLibrary {
         /// If xybk invariant, set reserveIn/reserveOut to artificial liquidity instead of actual liquidity
         if (isXybk) {
             (uint256 boost0, uint256 boost1) = IImpossiblePair(pair).calcBoost();
-            uint256 sqrtK = xybkComputeSqrtK(isMatch, reserveIn, reserveOut, boost0, boost1);
+            uint256 sqrtK =
+                Math.sqrt(
+                    xybkComputeK(isMatch ? reserveIn : reserveOut, isMatch ? reserveOut : reserveIn, boost0, boost1)
+                );
             /// since balance0=balance1 only at sqrtK, if final balanceIn >= sqrtK means balanceIn >= balanceOut
             /// Use post-fee balances to maintain consistency with pair contract K invariant check
             if (amountInPostFee.add(reserveIn.mul(10000)) >= sqrtK.mul(10000)) {
@@ -231,7 +279,10 @@ library ImpossibleLibrary {
                 (boost0, boost1) = IImpossiblePair(pair).calcBoost();
             }
             if (isXybk) {
-                uint256 sqrtK = xybkComputeSqrtK(isMatch, reserveIn, reserveOut, boost0, boost1);
+                uint256 sqrtK =
+                    Math.sqrt(
+                        xybkComputeK(isMatch ? reserveIn : reserveOut, isMatch ? reserveOut : reserveIn, boost0, boost1)
+                    );
                 /// since balance0=balance1 only at sqrtK, if final balanceOut >= sqrtK means balanceOut >= balanceIn
                 if (reserveOut.sub(amountOut) >= sqrtK) {
                     /// If tokenIn = token0, balanceOut > sqrtK => balance1>sqrtK, use boost1
@@ -304,7 +355,10 @@ library ImpossibleLibrary {
         /// If xybk invariant, set reserveIn/reserveOut to artificial liquidity instead of actual liquidity
         if (isXybk) {
             (uint256 boost0, uint256 boost1) = IImpossiblePair(pair).calcBoost();
-            uint256 sqrtK = xybkComputeSqrtK(isMatch, reserveIn, reserveOut, boost0, boost1);
+            uint256 sqrtK =
+                Math.sqrt(
+                    xybkComputeK(isMatch ? reserveIn : reserveOut, isMatch ? reserveOut : reserveIn, boost0, boost1)
+                );
             /// since balance0=balance1 only at sqrtK, if final balanceIn >= sqrtK means balanceIn >= balanceOut
             /// Use post-fee balances to maintain consistency with pair contract K invariant check
             if (amountInPostFee.add(reserveIn.mul(10000)) >= sqrtK.mul(10000)) {
@@ -373,31 +427,5 @@ library ImpossibleLibrary {
         for (uint256 i = path.length - 1; i > 0; i--) {
             amounts[i - 1] = getAmountIn(amounts[i], path[i - 1], path[i], factory);
         }
-    }
-
-    /**
-     @notice Computes sqrt of invariant K in xybk formula given state of boost, balances
-     @dev More details on math at: https://docs.impossible.finance/impossible-swap/swap-math
-     @param isMatch Boolean if tokenA == token0
-     @param reserveIn Amount of reserveIn tokens
-     @param reserveOut Amount of reserveOut tokens
-     @param boost0 The boost0 value in the pair
-     @param boost1 The boost1 value in the pair
-     @return uint256 The sqrt of the invariant K in this case
-    */
-    function xybkComputeSqrtK(
-        bool isMatch,
-        uint256 reserveIn,
-        uint256 reserveOut,
-        uint256 boost0,
-        uint256 boost1
-    ) internal pure returns (uint256) {
-        uint256 boost =
-            isMatch
-                ? ((reserveIn > reserveOut) ? boost0.sub(1) : boost1.sub(1))
-                : ((reserveOut > reserveIn) ? boost0.sub(1) : boost1.sub(1));
-        uint256 denom = boost.mul(2).add(1); // 1+2*boost
-        uint256 term = boost.mul(reserveIn.add(reserveOut)).div(denom.mul(2)); // boost*(x+y)/(2+4*boost)
-        return Math.sqrt(term**2 + reserveIn.mul(reserveOut).div(denom)) + term;
     }
 }

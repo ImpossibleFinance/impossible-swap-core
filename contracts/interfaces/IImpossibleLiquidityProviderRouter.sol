@@ -85,7 +85,7 @@ interface IImpossibleLiquidityProviderRouter {
         bytes32 s
     ) external returns (uint256 amountToken, uint256 amountETH);
 
-        function removeLiquidityETHSupportingFeeOnTransferTokens(
+    function removeLiquidityETHSupportingFeeOnTransferTokens(
         address token,
         uint256 liquidity,
         uint256 amountTokenMin,
@@ -106,6 +106,4 @@ interface IImpossibleLiquidityProviderRouter {
         bytes32 r,
         bytes32 s
     ) external returns (uint256 amountETH);
-
-
 }
