@@ -9,9 +9,9 @@ import ERC20 from '../../build/ERC20.json'
 import ImpossibleSwapFactory from '../../build/ImpossibleSwapFactory.json'
 import ImpossibleWrapperFactory from '../../build/ImpossibleWrapperFactory.json'
 import ImpossiblePair from '../../build/ImpossiblePair.json'
-import ImpossibleRouter02 from '../../build/ImpossibleRouter02.json'
+import ImpossibleSwapRouter from '../../build/ImpossibleSwapRouter.json'
+import ImpossibleLiquidityProviderRouter from '../../build/ImpossibleLiquidityProviderRouter.json'
 import ImpossibleUtils from '../../build/ImpossibleUtils.json'
-import RouterEventEmitter from '../../build/RouterEventEmitter.json'
 
 interface FactoryFixture {
   factory: Contract
@@ -57,7 +57,6 @@ interface V2Fixture {
   wrapFactory: Contract
   router02: Contract
   routerUtils: Contract
-  routerEventEmitter: Contract
   router: Contract
 }
 
@@ -84,8 +83,6 @@ export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Pro
 
   const routerUtils = await deployContract(wallet, ImpossibleUtils, [pairFactory.address])
 
-  const routerEventEmitter = await deployContract(wallet, RouterEventEmitter, [])
-
   return {
     tokenA,
     tokenB,
@@ -95,7 +92,6 @@ export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Pro
     wrapFactory,
     router02,
     routerUtils,
-    router: router02, // not using router01
-    routerEventEmitter
+    router: router02
   }
 }

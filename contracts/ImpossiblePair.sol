@@ -5,7 +5,7 @@ import './ImpossibleERC20.sol';
 
 import './libraries/Math.sol';
 import './libraries/ReentrancyGuard.sol';
-import './libraries/ImpossibleUtilities.sol';
+import './libraries/ImpossibleLibrary.sol';
 
 import './interfaces/IImpossiblePair.sol';
 import './interfaces/IERC20.sol';
@@ -43,7 +43,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     /**
      @dev tradeState Tracks what directional trades are allowed for this pair.
     */
-    ImpossibleUtilities.TradeState private tradeState;
+    ImpossibleLibrary.TradeState private tradeState;
 
     bool private isXybk;
 
@@ -109,7 +109,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         override
         returns (
             uint16 _tradeFee,
-            ImpossibleUtilities.TradeState _tradeState,
+            ImpossibleLibrary.TradeState _tradeState,
             bool _isXybk
         )
     {
@@ -276,7 +276,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
      @dev Can only be called by IF governance
      @param _tradeState See line 45 for TradeState enum settings
     */
-    function updateTradeState(ImpossibleUtilities.TradeState _tradeState) external onlyGovernance nonReentrant {
+    function updateTradeState(ImpossibleLibrary.TradeState _tradeState) external onlyGovernance nonReentrant {
         require(isXybk, 'IF: IS_CURRENTLY_UNI');
         tradeState = _tradeState;
         emit updatedTradeState(_tradeState);
@@ -518,11 +518,11 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
             // Avoid stack too deep errors
             bool _isXybk = isXybk;
             if (_isXybk) {
-                ImpossibleUtilities.TradeState _tradeState = tradeState;
+                ImpossibleLibrary.TradeState _tradeState = tradeState;
                 require(
-                    (_tradeState == ImpossibleUtilities.TradeState.SELL_ALL) ||
-                        (_tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_0 && amount1Out == 0) ||
-                        (_tradeState == ImpossibleUtilities.TradeState.SELL_TOKEN_1 && amount0Out == 0),
+                    (_tradeState == ImpossibleLibrary.TradeState.SELL_ALL) ||
+                        (_tradeState == ImpossibleLibrary.TradeState.SELL_TOKEN_0 && amount1Out == 0) ||
+                        (_tradeState == ImpossibleLibrary.TradeState.SELL_TOKEN_1 && amount0Out == 0),
                     'IF: TRADE_NOT_ALLOWED'
                 );
             }

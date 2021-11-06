@@ -2,7 +2,7 @@
 pragma solidity =0.7.6;
 
 import './IImpossibleERC20.sol';
-import '../libraries/ImpossibleUtilities.sol';
+import '../libraries/ImpossibleLibrary.sol';
 
 interface IImpossiblePair is IImpossibleERC20 {
     event Mint(address indexed sender, uint256 amount0, uint256 amount1);
@@ -19,7 +19,7 @@ interface IImpossiblePair is IImpossibleERC20 {
     event changeInvariant(bool _isXybk, uint256 _newBoost0, uint256 _newBoost1);
     event updatedTradeFees(uint256 _oldFee, uint256 _newFee);
     event updatedDelay(uint256 _oldDelay, uint256 _newDelay);
-    event updatedTradeState(ImpossibleUtilities.TradeState _tradeState);
+    event updatedTradeState(ImpossibleLibrary.TradeState _tradeState);
     event updatedWithdrawalFeeRatio(uint256 _oldWithdrawalFee, uint256 _newWithdrawalFee);
     event updatedBoost(
         uint32 _oldBoost0,
@@ -64,7 +64,7 @@ interface IImpossiblePair is IImpossibleERC20 {
         view
         returns (
             uint16,
-            ImpossibleUtilities.TradeState,
+            ImpossibleLibrary.TradeState,
             bool
         ); // Uses single storage slot, save gas
 

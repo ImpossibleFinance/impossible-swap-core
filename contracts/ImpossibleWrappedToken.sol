@@ -45,7 +45,7 @@ contract ImpossibleWrappedToken is IImpossibleWrappedToken, ReentrancyGuard {
         balanceOf[dst] = balanceOf[dst].add(wad);
         totalSupply = totalSupply.add(wad);
         underlyingBalance = underlyingBalance.add(transferAmt);
-        emit Transfer(address(0), msg.sender, wad);
+        emit Transfer(address(0), dst, wad);
     }
 
     // wad = amount of wrapped tokens

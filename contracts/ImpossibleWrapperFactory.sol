@@ -54,7 +54,7 @@ contract ImpossibleWrapperFactory is IImpossibleWrapperFactory {
             tokensToWrappedTokens[underlying] == address(0x0) && wrappedTokensToTokens[underlying] == address(0x0),
             'IF: PAIR_EXISTS'
         );
-        require(ratioDenominator != 0, 'IF: INVALID_DENOMINATOR');
+        require(ratioNumerator != 0 && ratioDenominator != 0, 'IF: INVALID_RATIO');
         ImpossibleWrappedToken wrapper = new ImpossibleWrappedToken(underlying, ratioNumerator, ratioDenominator);
         tokensToWrappedTokens[underlying] = address(wrapper);
         wrappedTokensToTokens[address(wrapper)] = underlying;
