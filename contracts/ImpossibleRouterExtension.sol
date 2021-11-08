@@ -3,11 +3,11 @@ pragma solidity =0.7.6;
 
 import './interfaces/IImpossiblePair.sol';
 import './interfaces/IImpossibleSwapFactory.sol';
-import './interfaces/IImpossibleRouterInterface.sol';
+import './interfaces/IImpossibleRouterExtension.sol';
 
 import './libraries/ImpossibleLibrary.sol';
 
-contract ImpossibleRouterInterface is IImpossibleRouterInterface {
+contract ImpossibleRouterExtension is IImpossibleRouterExtension {
     address public immutable override factory;
 
     constructor(address _factory) {

@@ -9,8 +9,8 @@ import ERC20 from '../../build/ERC20.json'
 import ImpossibleSwapFactory from '../../build/ImpossibleSwapFactory.json'
 import ImpossibleWrapperFactory from '../../build/ImpossibleWrapperFactory.json'
 import ImpossiblePair from '../../build/ImpossiblePair.json'
-import ImpossibleSwapRouter from '../../build/ImpossibleSwapRouter.json'
-import ImpossibleLiquidityProviderRouter from '../../build/ImpossibleLiquidityProviderRouter.json'
+import ImpossibleRouter from '../../build/ImpossibleRouter.json'
+import ImpossibleRouterExtension from '../../build/ImpossibleRouterExtension.json'
 
 interface FactoryFixture {
   factory: Contract
@@ -54,8 +54,6 @@ interface V2Fixture {
   WETHPartner: Contract
   pairFactory: Contract
   wrapFactory: Contract
-  swapRouter: Contract
-  lpRouter: Contract
   router: Contract
 }
 
@@ -77,11 +75,11 @@ export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Pro
   const wrapFactory = await deployContract(wallet, ImpossibleWrapperFactory, [wallet.address])
 
   // deploy routers
-  const swapRouter = await deployContract(wallet, ImpossibleSwapRouter, [pairFactory.address, wrapFactory.address, wallet.address], overrides)
-  await swapRouter.setWETH(WETH.address)
+  const routerExtension = await deployContract(wallet, ImpossibleRouterExtension, [pairFactory.address], overrides)
 
-  const swapRouter = await deployContract(wallet, ImpossibleSwapRouter, [pairFactory.address, wrapFactory.address, wallet.address], overrides)
-  await swapRouter.setWETH(WETH.address)
+  const router = await deployContract(wallet, ImpossibleRouter, [pairFactory.address, wrapFactory.address, wallet.address], overrides)
+  await router.setUtilities(WETH.address, routerExtension.address)
+
 
   return {
     tokenA,
@@ -90,8 +88,6 @@ export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Pro
     WETHPartner,
     pairFactory,
     wrapFactory,
-    router02,
-    routerUtils,
-    router: router02
+    router
   }
 }

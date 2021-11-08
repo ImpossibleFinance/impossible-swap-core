@@ -10,8 +10,6 @@ import './Math.sol';
 library ImpossibleLibrary {
     using SafeMath for uint256;
 
-    enum TradeState {SELL_ALL, SELL_TOKEN_0, SELL_TOKEN_1, SELL_NONE}
-
     /**
      @notice Sorts tokens in ascending order
      @param tokenA The address of token A
@@ -45,7 +43,7 @@ library ImpossibleLibrary {
                         hex'ff',
                         factory,
                         keccak256(abi.encodePacked(token0, token1)),
-                        hex'cd6a00bb24f01736b4641e428f720a1dee69319ca269cf3de70ea2d1adfa99cf' // init code hash
+                        hex'c0ddeaeb6a9888a8cac7c75e73d2e50db4c16f1a1277a8c929d8bb149e132b86' // init code hash
                     )
                 )
             )
@@ -100,6 +98,7 @@ library ImpossibleLibrary {
     /**
      @notice Internal function to compute the K value for an xybk pair based on token balances and boost
      @dev More details on math at: https://docs.impossible.finance/impossible-swap/swap-math
+     @dev Implementation is the same as in pair
      @param boost0 Current boost0 in pair
      @param boost1 Current boost1 in pair
      @param balance0 Current state of balance0 in pair
@@ -116,30 +115,6 @@ library ImpossibleLibrary {
         uint256 denom = boost.mul(2).add(1); // 1+2*boost
         uint256 term = boost.mul(balance0.add(balance1)).div(denom.mul(2)); // boost*(x+y)/(2+4*boost)
         k = (Math.sqrt(term**2 + balance0.mul(balance1).div(denom)) + term)**2;
-    }
-
-    /**
-     @notice Performing K invariant check through an approximation from old K
-     @dev More details on math at: https://docs.impossible.finance/impossible-swap/swap-math
-     @dev If K_new >= K_old, correctness should still hold
-     @param boost0 Current boost0 in pair
-     @param boost1 Current boost1 in pair
-     @param balance0 Current state of balance0 in pair
-     @param balance1 Current state of balance1 in pair
-     @param oldK The pre-swap K value
-     @return bool Whether the new balances satisfy the K check for xybk
-    */
-    function xybkCheckK(
-        uint256 boost0,
-        uint256 boost1,
-        uint256 balance0,
-        uint256 balance1,
-        uint256 oldK
-    ) internal pure returns (bool) {
-        uint256 oldSqrtK = Math.sqrt(oldK);
-        uint256 boost = (balance0 > balance1) ? boost0.sub(1) : boost1.sub(1);
-        uint256 innerTerm = boost.mul(oldSqrtK);
-        return (balance0.add(innerTerm)).mul(balance1.add(innerTerm)).div((boost.add(1))**2) >= oldK;
     }
 
     /**
@@ -187,13 +162,13 @@ library ImpossibleLibrary {
         {
             // Avoid stack too deep
             uint256 fee;
-            TradeState tradeState;
+            IImpossiblePair.TradeState tradeState;
             (fee, tradeState, isXybk) = IImpossiblePair(pair).getPairSettings();
             amountInPostFee = amountIn.mul(10000 - fee);
             require(
-                (tradeState == TradeState.SELL_ALL) ||
-                    (tradeState == TradeState.SELL_TOKEN_0 && !isMatch) ||
-                    (tradeState == TradeState.SELL_TOKEN_1 && isMatch),
+                (tradeState == IImpossiblePair.TradeState.SELL_ALL) ||
+                    (tradeState == IImpossiblePair.TradeState.SELL_TOKEN_0 && !isMatch) ||
+                    (tradeState == IImpossiblePair.TradeState.SELL_TOKEN_1 && isMatch),
                 'ImpossibleLibrary: TRADE_NOT_ALLOWED'
             );
         }
@@ -268,12 +243,12 @@ library ImpossibleLibrary {
                 address pair;
                 (reserveIn, reserveOut, pair) = getReserves(factory, tokenIn, tokenOut);
                 require(reserveIn > 0 && reserveOut > 0, 'ImpossibleLibrary: INSUFFICIENT_LIQUIDITY');
-                TradeState tradeState;
+                IImpossiblePair.TradeState tradeState;
                 (fee, tradeState, isXybk) = IImpossiblePair(pair).getPairSettings();
                 require(
-                    (tradeState == TradeState.SELL_ALL) ||
-                        (tradeState == TradeState.SELL_TOKEN_0 && !isMatch) ||
-                        (tradeState == TradeState.SELL_TOKEN_1 && isMatch),
+                    (tradeState == IImpossiblePair.TradeState.SELL_ALL) ||
+                        (tradeState == IImpossiblePair.TradeState.SELL_TOKEN_0 && !isMatch) ||
+                        (tradeState == IImpossiblePair.TradeState.SELL_TOKEN_1 && isMatch),
                     'ImpossibleLibrary: TRADE_NOT_ALLOWED'
                 );
                 (boost0, boost1) = IImpossiblePair(pair).calcBoost();
@@ -342,12 +317,12 @@ library ImpossibleLibrary {
             uint256 fee;
             uint256 balanceIn = IERC20(tokenIn).balanceOf(address(pair));
             require(balanceIn > reserveIn, 'ImpossibleLibrary: INSUFFICIENT_INPUT_AMOUNT');
-            TradeState tradeState;
+            IImpossiblePair.TradeState tradeState;
             (fee, tradeState, isXybk) = IImpossiblePair(pair).getPairSettings();
             require(
-                (tradeState == TradeState.SELL_ALL) ||
-                    (tradeState == TradeState.SELL_TOKEN_0 && !isMatch) ||
-                    (tradeState == TradeState.SELL_TOKEN_1 && isMatch),
+                (tradeState == IImpossiblePair.TradeState.SELL_ALL) ||
+                    (tradeState == IImpossiblePair.TradeState.SELL_TOKEN_0 && !isMatch) ||
+                    (tradeState == IImpossiblePair.TradeState.SELL_TOKEN_1 && isMatch),
                 'ImpossibleLibrary: TRADE_NOT_ALLOWED'
             );
             amountInPostFee = (balanceIn.sub(reserveIn)).mul(10000 - fee);

@@ -2,9 +2,8 @@
 pragma solidity =0.7.6;
 
 import './IImpossiblePair.sol';
-import './IImpossibleRouterInterface.sol';
 
-interface IImpossibleRouterInterface {
+interface IImpossibleRouterExtension {
     function factory() external returns (address factoryAddr);
 
     function swap(uint256[] memory amounts, address[] memory path) external;

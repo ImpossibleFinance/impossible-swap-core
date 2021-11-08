@@ -5,7 +5,6 @@ import './ImpossibleERC20.sol';
 
 import './libraries/Math.sol';
 import './libraries/ReentrancyGuard.sol';
-import './libraries/ImpossibleLibrary.sol';
 
 import './interfaces/IImpossiblePair.sol';
 import './interfaces/IERC20.sol';
@@ -43,7 +42,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     /**
      @dev tradeState Tracks what directional trades are allowed for this pair.
     */
-    ImpossibleLibrary.TradeState private tradeState;
+    TradeState private tradeState;
 
     bool private isXybk;
 
@@ -109,7 +108,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         override
         returns (
             uint16 _tradeFee,
-            ImpossibleLibrary.TradeState _tradeState,
+            TradeState _tradeState,
             bool _isXybk
         )
     {
@@ -276,7 +275,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
      @dev Can only be called by IF governance
      @param _tradeState See line 45 for TradeState enum settings
     */
-    function updateTradeState(ImpossibleLibrary.TradeState _tradeState) external onlyGovernance nonReentrant {
+    function updateTradeState(TradeState _tradeState) external onlyGovernance nonReentrant {
         require(isXybk, 'IF: IS_CURRENTLY_UNI');
         tradeState = _tradeState;
         emit updatedTradeState(_tradeState);
@@ -522,18 +521,18 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
             uint256 balance1Adjusted = balance1.mul(10000).sub(amount1In.mul(_tradeFee)); // tradeFee amt of basis pts
             if (_isXybk) {
                 // Check if trade is legal
-                ImpossibleLibrary.TradeState _tradeState = tradeState;
+                TradeState _tradeState = tradeState;
                 require(
-                    (_tradeState == ImpossibleLibrary.TradeState.SELL_ALL) ||
-                        (_tradeState == ImpossibleLibrary.TradeState.SELL_TOKEN_0 && amount1Out == 0) ||
-                        (_tradeState == ImpossibleLibrary.TradeState.SELL_TOKEN_1 && amount0Out == 0),
+                    (_tradeState == TradeState.SELL_ALL) ||
+                        (_tradeState == TradeState.SELL_TOKEN_0 && amount1Out == 0) ||
+                        (_tradeState == TradeState.SELL_TOKEN_1 && amount0Out == 0),
                     'IF: TRADE_NOT_ALLOWED'
                 );
 
                 uint256 scaledOldK = xybkComputeK(_reserve0, _reserve1).mul(10000**2);
                 (uint256 boost0, uint256 boost1) = calcBoost();
                 require(
-                    ImpossibleLibrary.xybkCheckK(boost0, boost1, balance0Adjusted, balance1Adjusted, scaledOldK),
+                    xybkCheckK(boost0, boost1, balance0Adjusted, balance1Adjusted, scaledOldK),
                     'IF: INSUFFICIENT_XYBK_K'
                 );
             } else {
@@ -558,7 +557,34 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
      */
     function xybkComputeK(uint256 _reserve0, uint256 _reserve1) internal view returns (uint256 k) {
         (uint256 _boost0, uint256 _boost1) = calcBoost();
-        k = ImpossibleLibrary.xybkComputeK(_boost0, _boost1, _reserve0, _reserve1);
+        uint256 boost = (_reserve0 > _reserve1) ? _boost0.sub(1) : _boost1.sub(1);
+        uint256 denom = boost.mul(2).add(1); // 1+2*boost
+        uint256 term = boost.mul(_reserve0.add(_reserve1)).div(denom.mul(2)); // boost*(x+y)/(2+4*boost)
+        k = (Math.sqrt(term**2 + _reserve0.mul(_reserve1).div(denom)) + term)**2;
+    }
+
+    /**
+     @notice Performing K invariant check through an approximation from old K
+     @dev More details on math at: https://docs.impossible.finance/impossible-swap/swap-math
+     @dev If K_new >= K_old, correctness should still hold
+     @param boost0 Current boost0 in pair
+     @param boost1 Current boost1 in pair
+     @param balance0 Current state of balance0 in pair
+     @param balance1 Current state of balance1 in pair
+     @param oldK The pre-swap K value
+     @return bool Whether the new balances satisfy the K check for xybk
+    */
+    function xybkCheckK(
+        uint256 boost0,
+        uint256 boost1,
+        uint256 balance0,
+        uint256 balance1,
+        uint256 oldK
+    ) internal pure returns (bool) {
+        uint256 oldSqrtK = Math.sqrt(oldK);
+        uint256 boost = (balance0 > balance1) ? boost0.sub(1) : boost1.sub(1);
+        uint256 innerTerm = boost.mul(oldSqrtK);
+        return (balance0.add(innerTerm)).mul(balance1.add(innerTerm)).div((boost.add(1))**2) >= oldK;
     }
 
     /**

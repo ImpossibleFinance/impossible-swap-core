@@ -24,7 +24,7 @@ enum TestVersion {
   wrapper = 'wrapper'
 }
 
-describe('Swap Tests', () => {
+describe('ImpossibleRouter01Tests', () => {
   for (const testVersion of Object.keys(TestVersion)) {
     const provider = new MockProvider({
       hardfork: 'istanbul',
@@ -38,7 +38,6 @@ describe('Swap Tests', () => {
     let factory: Contract
     let wrapFactory: Contract
     let router: Contract
-    let routerEventEmitter: Contract
 
     let addLiquidity: Function
     let addLiquidityEth: Function
@@ -64,8 +63,7 @@ describe('Swap Tests', () => {
       underlyingWETHPartner = fixture.WETHPartner
       underlyingTokenA = fixture.tokenA
       factory = fixture.pairFactory
-      router = fixture.router02
-      routerEventEmitter = fixture.routerEventEmitter
+      router = fixture.router
       wrapFactory = fixture.wrapFactory
 
       // set whitelist router

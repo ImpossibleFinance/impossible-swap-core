@@ -4,7 +4,7 @@ pragma solidity >=0.6.2;
 interface IImpossibleRouter {
     function factory() external view returns (address factoryAddr);
 
-    function routerInterface() external view returns (address routerInterfaceAddr);
+    function routerExtension() external view returns (address routerExtensionAddr);
 
     function wrapFactory() external view returns (address wrapFactoryAddr);
 
