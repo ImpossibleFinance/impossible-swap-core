@@ -179,26 +179,4 @@ interface IImpossibleRouter {
         bytes32 r,
         bytes32 s
     ) external returns (uint256 amountETH);
-
-    function quote(
-        uint256 amountA,
-        uint256 reserveA,
-        uint256 reserveB
-    ) external returns (uint256 amountB);
-
-    function getAmountOut(
-        uint256 amountIn,
-        address tokenIn,
-        address tokenOut
-    ) external view returns (uint256 amountOut);
-
-    function getAmountIn(
-        uint256 amountOut,
-        address tokenIn,
-        address tokenOut
-    ) external view returns (uint256 amountIn);
-
-    function getAmountsOut(uint256 amountIn, address[] calldata path) external view returns (uint256[] memory amounts);
-
-    function getAmountsIn(uint256 amountOut, address[] calldata path) external view returns (uint256[] memory amounts);
 }

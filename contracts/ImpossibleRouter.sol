@@ -456,10 +456,12 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
         address to,
         uint256 deadline
     ) public virtual override ensure(deadline) nonReentrant returns (uint256 amountA, uint256 amountB) {
+        address pair = ImpossibleLibrary.pairFor(factory, tokenA, tokenB);
+        IImpossiblePair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
         (amountA, amountB) = IImpossibleRouterExtension(routerExtension).removeLiquidity(
             tokenA,
             tokenB,
-            liquidity,
+            pair,
             amountAMin,
             amountBMin
         );
@@ -487,10 +489,12 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
         address to,
         uint256 deadline
     ) public virtual override ensure(deadline) nonReentrant returns (uint256 amountToken, uint256 amountETH) {
+        address pair = ImpossibleLibrary.pairFor(factory, token, WETH);
+        IImpossiblePair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
         (amountToken, amountETH) = IImpossibleRouterExtension(routerExtension).removeLiquidity(
             token,
             WETH,
-            liquidity,
+            pair,
             amountTokenMin,
             amountETHMin
         );
@@ -584,10 +588,12 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
         address to,
         uint256 deadline
     ) public virtual override ensure(deadline) nonReentrant returns (uint256 amountETH) {
+        address pair = ImpossibleLibrary.pairFor(factory, token, WETH);
+        IImpossiblePair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
         (, amountETH) = IImpossibleRouterExtension(routerExtension).removeLiquidity(
             token,
             WETH,
-            liquidity,
+            pair,
             amountTokenMin,
             amountETHMin
         );
@@ -632,49 +638,5 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
             to,
             deadline
         );
-    }
-
-    function quote(
-        uint256 amountA,
-        uint256 reserveA,
-        uint256 reserveB
-    ) public pure virtual override returns (uint256 amountB) {
-        return ImpossibleLibrary.quote(amountA, reserveA, reserveB);
-    }
-
-    function getAmountOut(
-        uint256 amountIn,
-        address tokenIn,
-        address tokenOut
-    ) public view virtual override returns (uint256 amountOut) {
-        return ImpossibleLibrary.getAmountOut(amountIn, tokenIn, tokenOut, factory);
-    }
-
-    function getAmountIn(
-        uint256 amountOut,
-        address tokenIn,
-        address tokenOut
-    ) public view virtual override returns (uint256 amountIn) {
-        return ImpossibleLibrary.getAmountIn(amountOut, tokenIn, tokenOut, factory);
-    }
-
-    function getAmountsOut(uint256 amountIn, address[] memory path)
-        public
-        view
-        virtual
-        override
-        returns (uint256[] memory amounts)
-    {
-        return ImpossibleLibrary.getAmountsOut(factory, amountIn, path);
-    }
-
-    function getAmountsIn(uint256 amountOut, address[] memory path)
-        public
-        view
-        virtual
-        override
-        returns (uint256[] memory amounts)
-    {
-        return ImpossibleLibrary.getAmountsIn(factory, amountOut, path);
     }
 }

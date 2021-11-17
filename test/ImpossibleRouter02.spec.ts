@@ -29,6 +29,7 @@ describe('ImpossibleRouter02Tests', () => {
   let token0: Contract
   let token1: Contract
   let router: Contract
+  let routerExtension: Contract
   let pair: Contract
   let factory: Contract
 
@@ -36,6 +37,7 @@ describe('ImpossibleRouter02Tests', () => {
     const fixture = await loadFixture(v2Fixture)
     factory = fixture.pairFactory
     router = fixture.router
+    routerExtension = fixture.routerExtension
     // set whitelist router
     await factory.setRouter(router.address)
 
@@ -49,15 +51,15 @@ describe('ImpossibleRouter02Tests', () => {
   })
 
   it('quote', async () => {
-    expect(await router.quote(bigNumberify(1), bigNumberify(100), bigNumberify(200))).to.eq(bigNumberify(2))
-    expect(await router.quote(bigNumberify(2), bigNumberify(200), bigNumberify(100))).to.eq(bigNumberify(1))
-    await expect(router.quote(bigNumberify(0), bigNumberify(100), bigNumberify(200))).to.be.revertedWith(
+    expect(await routerExtension.quote(bigNumberify(1), bigNumberify(100), bigNumberify(200))).to.eq(bigNumberify(2))
+    expect(await routerExtension.quote(bigNumberify(2), bigNumberify(200), bigNumberify(100))).to.eq(bigNumberify(1))
+    await expect(routerExtension.quote(bigNumberify(0), bigNumberify(100), bigNumberify(200))).to.be.revertedWith(
       'ImpossibleLibrary: INSUFFICIENT_AMOUNT'
     )
-    await expect(router.quote(bigNumberify(1), bigNumberify(0), bigNumberify(200))).to.be.revertedWith(
+    await expect(routerExtension.quote(bigNumberify(1), bigNumberify(0), bigNumberify(200))).to.be.revertedWith(
       'ImpossibleLibrary: INSUFFICIENT_LIQUIDITY'
     )
-    await expect(router.quote(bigNumberify(1), bigNumberify(100), bigNumberify(0))).to.be.revertedWith(
+    await expect(routerExtension.quote(bigNumberify(1), bigNumberify(100), bigNumberify(0))).to.be.revertedWith(
       'ImpossibleLibrary: INSUFFICIENT_LIQUIDITY'
     )
   })
@@ -77,11 +79,11 @@ describe('ImpossibleRouter02Tests', () => {
       overrides
     )
 
-    await expect(router.getAmountsOut(bigNumberify(2), [token0.address])).to.be.revertedWith(
+    await expect(routerExtension.getAmountsOut(bigNumberify(2), [token0.address])).to.be.revertedWith(
       'ImpossibleLibrary: INVALID_PATH'
     )
     const path = [token0.address, token1.address]
-    expect(await router.getAmountsOut(bigNumberify(2), path)).to.deep.eq([bigNumberify(2), bigNumberify(1)])
+    expect(await routerExtension.getAmountsOut(bigNumberify(2), path)).to.deep.eq([bigNumberify(2), bigNumberify(1)])
   })
 
   it('getAmountsIn', async () => {
@@ -99,11 +101,11 @@ describe('ImpossibleRouter02Tests', () => {
       overrides
     )
 
-    await expect(router.getAmountsIn(bigNumberify(1), [token0.address])).to.be.revertedWith(
+    await expect(routerExtension.getAmountsIn(bigNumberify(1), [token0.address])).to.be.revertedWith(
       'ImpossibleLibrary: INVALID_PATH'
     )
     const path = [token0.address, token1.address]
-    expect(await router.getAmountsIn(bigNumberify(1), path)).to.deep.eq([bigNumberify(2), bigNumberify(1)])
+    expect(await routerExtension.getAmountsIn(bigNumberify(1), path)).to.deep.eq([bigNumberify(2), bigNumberify(1)])
   })
 })
 

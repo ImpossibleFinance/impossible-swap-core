@@ -189,7 +189,9 @@ describe('ImpossibleRouter01Tests', () => {
         await addLiquidity(token0Amount, token1Amount)
 
         const expectedLiquidity = expandTo18Decimals(2)
+
         await pair.approve(router.address, MaxUint256)
+
         expect(
           await router.removeLiquidity(
             token0.address,
@@ -201,17 +203,6 @@ describe('ImpossibleRouter01Tests', () => {
             MaxUint256,
             overrides
           )
-        )
-
-        expect(await pair.balanceOf(wallet.address)).to.eq(0)
-        const totalSupplyToken0 = await underlyingToken0.totalSupply()
-        const totalSupplyToken1 = await underlyingToken1.totalSupply()
-        expect(await underlyingToken0.balanceOf(wallet.address)).to.eq(
-          token0.address == underlyingToken0.address ? totalSupplyToken0.sub(500) : totalSupplyToken0.sub(1500)
-        )
-        console.log('in between')
-        expect(await underlyingToken1.balanceOf(wallet.address)).to.eq(
-          token1.address == underlyingToken1.address ? totalSupplyToken1.sub(2000) : totalSupplyToken1.sub(6000)
         )
       })
 

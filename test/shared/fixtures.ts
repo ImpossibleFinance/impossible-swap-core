@@ -55,6 +55,7 @@ interface V2Fixture {
   pairFactory: Contract
   wrapFactory: Contract
   router: Contract
+  routerExtension: Contract
 }
 
 export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Promise<V2Fixture> {
@@ -88,6 +89,7 @@ export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Pro
     WETHPartner,
     pairFactory,
     wrapFactory,
-    router
+    router,
+    routerExtension
   }
 }

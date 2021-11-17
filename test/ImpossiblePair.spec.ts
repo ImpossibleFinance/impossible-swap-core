@@ -289,7 +289,7 @@ describe('ImpossiblePair', () => {
     await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
     const tx = await pair.swap(swapAmount, 0, wallet.address, '0x', overrides) // Testing gas fee
     const receipt = await tx.wait()
-    expect(receipt.gasUsed).to.eq(87476)
+    expect(receipt.gasUsed).to.eq(87421)
   })
 
   interface linInterpolateTestCase {

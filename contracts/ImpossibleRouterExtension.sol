@@ -103,7 +103,7 @@ contract ImpossibleRouterExtension is IImpossibleRouterExtension {
      @dev Logic is unchanged from uniswap-V2-Router02
      @param tokenA The address of underlying tokenA in LP token
      @param tokenB The address of underlying tokenB in LP token
-     @param liquidity The amount of LP tokens to burn
+     @param pair The address of the pair corresponding to tokenA and tokenB
      @param amountAMin The min amount of underlying tokenA that has to be received
      @param amountBMin The min amount of underlying tokenB that has to be received
      @return amountA Actual amount of underlying tokenA received
@@ -112,16 +112,58 @@ contract ImpossibleRouterExtension is IImpossibleRouterExtension {
     function removeLiquidity(
         address tokenA,
         address tokenB,
-        uint256 liquidity,
+        address pair,
         uint256 amountAMin,
         uint256 amountBMin
     ) public override returns (uint256 amountA, uint256 amountB) {
-        address pair = ImpossibleLibrary.pairFor(factory, tokenA, tokenB);
-        IImpossiblePair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
         (uint256 amount0, uint256 amount1) = IImpossiblePair(pair).burn(msg.sender);
         (address token0, ) = ImpossibleLibrary.sortTokens(tokenA, tokenB);
         (amountA, amountB) = tokenA == token0 ? (amount0, amount1) : (amount1, amount0);
         require(amountA >= amountAMin, 'ImpossibleRouter: INSUFFICIENT_A_AMOUNT');
         require(amountB >= amountBMin, 'ImpossibleRouter: INSUFFICIENT_B_AMOUNT');
+    }
+
+    function quote(
+        uint256 amountA,
+        uint256 reserveA,
+        uint256 reserveB
+    ) public pure virtual override returns (uint256 amountB) {
+        return ImpossibleLibrary.quote(amountA, reserveA, reserveB);
+    }
+
+    function getAmountOut(
+        uint256 amountIn,
+        address tokenIn,
+        address tokenOut
+    ) public view virtual override returns (uint256 amountOut) {
+        return ImpossibleLibrary.getAmountOut(amountIn, tokenIn, tokenOut, factory);
+    }
+
+    function getAmountIn(
+        uint256 amountOut,
+        address tokenIn,
+        address tokenOut
+    ) public view virtual override returns (uint256 amountIn) {
+        return ImpossibleLibrary.getAmountIn(amountOut, tokenIn, tokenOut, factory);
+    }
+
+    function getAmountsOut(uint256 amountIn, address[] memory path)
+        public
+        view
+        virtual
+        override
+        returns (uint256[] memory amounts)
+    {
+        return ImpossibleLibrary.getAmountsOut(factory, amountIn, path);
+    }
+
+    function getAmountsIn(uint256 amountOut, address[] memory path)
+        public
+        view
+        virtual
+        override
+        returns (uint256[] memory amounts)
+    {
+        return ImpossibleLibrary.getAmountsIn(factory, amountOut, path);
     }
 }

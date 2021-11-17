@@ -52,27 +52,15 @@ contract ImpossibleWrappedToken is IImpossibleWrappedToken, ReentrancyGuard {
     function withdraw(address dst, uint256 wad) public override nonReentrant returns (uint256 transferAmt) {
         balanceOf[msg.sender] = balanceOf[msg.sender].sub(wad);
         emit Transfer(msg.sender, address(0), wad);
-        return _withdraw(dst, wad);
-    }
-
-    function withdraw(
-        address src,
-        address dst,
-        uint256 wad
-    ) public nonReentrant returns (uint256 transferAmt) {
-        allowance[src][msg.sender] = allowance[src][msg.sender].sub(wad);
-        balanceOf[src] = balanceOf[src].sub(wad);
-        emit Transfer(src, address(0), wad);
-        return _withdraw(dst, wad);
-    }
-
-    function _withdraw(address dst, uint256 wad) internal returns (uint256 transferAmt) {
         totalSupply = totalSupply.sub(wad);
         transferAmt = wad.mul(ratioDenom).div(ratioNum);
         bool success = IERC20(underlying).transfer(dst, transferAmt);
         require(success, 'IF Wrapper: UNDERLYING_TRANSFER_FAIL');
         underlyingBalance = underlyingBalance.sub(transferAmt);
+        return transferAmt;
     }
+
+    function _withdraw(address dst, uint256 wad) internal returns (uint256 transferAmt) {}
 
     function amtToUnderlyingAmt(uint256 amt) public view override returns (uint256) {
         return amt.mul(ratioDenom).div(ratioNum);
