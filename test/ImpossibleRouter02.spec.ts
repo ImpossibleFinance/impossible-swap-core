@@ -39,7 +39,7 @@ describe('ImpossibleRouter02Tests', () => {
     router = fixture.router
     routerExtension = fixture.routerExtension
     // set whitelist router
-    await factory.setRouterAndExtension(router.address)
+    await factory.setRouterAndExtension(router.address, routerExtension.address)
 
     await factory.createPair(fixture.tokenA.address, fixture.tokenB.address)
     const pairAddress = await factory.getPair(fixture.tokenA.address, fixture.tokenB.address)
@@ -122,15 +122,17 @@ describe('fee-on-transfer tokens', () => {
   let WETH: Contract
   let factory: Contract
   let router: Contract
+  let routerExtension: Contract
   let pair: Contract
   beforeEach(async function() {
     const fixture = await loadFixture(v2Fixture)
     factory = fixture.pairFactory
     router = fixture.router
+    routerExtension = fixture.routerExtension
     // set whitelist router
     WETH = fixture.WETH
     DTT = await deployContract(wallet, DeflatingERC20, [expandTo18Decimals(10000)])
-    await factory.setRouterAndExtension(router.address)
+    await factory.setRouterAndExtension(router.address, routerExtension.address)
     await factory.createPair(WETH.address, DTT.address)
     const pairAddress = await factory.getPair(WETH.address, DTT.address)
     pair = new Contract(pairAddress, JSON.stringify(IImpossiblePair.abi), provider).connect(wallet)
@@ -308,13 +310,15 @@ describe('fee-on-transfer tokens: reloaded', () => {
   let DTT: Contract
   let DTT2: Contract
   let router: Contract
+  let routerExtension: Contract
   let factory: Contract
   beforeEach(async function() {
     const fixture = await loadFixture(v2Fixture)
 
     router = fixture.router
     factory = fixture.pairFactory
-    await factory.setRouterAndExtension(router.address)
+    routerExtension = fixture.routerExtension
+    await factory.setRouterAndExtension(router.address, routerExtension.address)
 
     DTT = await deployContract(wallet, DeflatingERC20, [expandTo18Decimals(10000)])
     DTT2 = await deployContract(wallet, DeflatingERC20, [expandTo18Decimals(10000)])

@@ -92,6 +92,7 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
             TransferHelper.safeTransferFrom(token, src, dst, amt);
         } else {
             uint256 underlyingAmt = IImpossibleWrappedToken(token).amtToUnderlyingAmt(amt);
+            TransferHelper.safeTransferFrom(underlying, src, address(this), underlyingAmt);
             TransferHelper.safeApprove(underlying, token, underlyingAmt);
             IImpossibleWrappedToken(token).deposit(dst, underlyingAmt);
         }

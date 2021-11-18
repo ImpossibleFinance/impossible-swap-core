@@ -3,6 +3,7 @@ pragma solidity =0.7.6;
 
 import './interfaces/IImpossibleWrapperFactory.sol';
 import './ImpossibleWrappedToken.sol';
+import './interfaces/IERC20.sol';
 
 /**
     @title  Wrapper Factory for Impossible Swap V3
@@ -70,7 +71,7 @@ contract ImpossibleWrapperFactory is IImpossibleWrapperFactory {
     function deletePairing(address wrapper) external onlyGovernance {
         require(ImpossibleWrappedToken(wrapper).totalSupply() == 0, 'IF: NONZERO_SUPPLY');
         address _underlying = wrappedTokensToTokens[wrapper];
-        require(ImpossibleWrappedToken(wrapper).underlying() == _underlying, 'IF: INVALID_TOKEN');
+        require(ImpossibleWrappedToken(wrapper).underlying() == IERC20(_underlying), 'IF: INVALID_TOKEN');
         require(_underlying != address(0x0), 'IF: Address must have pair');
         delete tokensToWrappedTokens[_underlying];
         delete wrappedTokensToTokens[wrapper];

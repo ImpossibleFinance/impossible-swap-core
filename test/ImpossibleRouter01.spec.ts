@@ -38,6 +38,7 @@ describe('ImpossibleRouter01Tests', () => {
     let factory: Contract
     let wrapFactory: Contract
     let router: Contract
+    let routerExtension: Contract
 
     let addLiquidity: Function
     let addLiquidityEth: Function
@@ -65,9 +66,10 @@ describe('ImpossibleRouter01Tests', () => {
       factory = fixture.pairFactory
       router = fixture.router
       wrapFactory = fixture.wrapFactory
+      routerExtension = fixture.routerExtension
 
       // set whitelist router
-      await factory.setRouterAndExtension(router.address)
+      await factory.setRouterAndExtension(router.address, routerExtension.address)
 
       if ((testVersion as TestVersion) == 'wrapper') {
         await wrapFactory.createPairing(underlyingTokenA.address, 1, 3) // 6 underlying token = 1 wrapped token
@@ -340,7 +342,7 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 113627, // Uni was 101876
+              [TestVersion.basic]: 117734, // Uni was 101876
               [TestVersion.wrapper]: 144852
             }[testVersion as TestVersion]
           )
@@ -356,7 +358,7 @@ describe('ImpossibleRouter01Tests', () => {
         beforeEach(async () => {
           await addLiquidity(token0Amount, token1Amount)
           await underlyingToken0.approve(router.address, MaxUint256)
-          await pair.makeXybk(0, 100, 10, 10) // ratiostart=0, ratioend=100, boost0=10, boost1=10
+          await pair.makeXybk(10, 10) // boost0=10, boost1=10
           let t: number
           t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
           for (var i = 0; i < ONE_DAY; i++) {
@@ -411,7 +413,7 @@ describe('ImpossibleRouter01Tests', () => {
         beforeEach(async () => {
           await addLiquidity(token0Amount, token1Amount)
           await underlyingToken0.approve(router.address, MaxUint256)
-          await pair.makeXybk(0, 100, 28, 11) // ratiostart=0, ratioend=100, boost0=28, boost1=11
+          await pair.makeXybk(28, 11) // boost0=28, boost1=11
           let t: number
           t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
           for (var i = 0; i < ONE_DAY; i++) {
@@ -466,7 +468,7 @@ describe('ImpossibleRouter01Tests', () => {
         beforeEach(async () => {
           await addLiquidity(token0Amount, token1Amount)
           await underlyingToken0.approve(router.address, MaxUint256)
-          await pair.makeXybk(0, 100, 28, 11) // ratiostart=0, ratioend=100, boost0=10, boost1=10
+          await pair.makeXybk(28, 11) // boost0=28, boost1=11
           let t: number
           t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
           for (var i = 0; i < ONE_DAY; i++) {
@@ -521,7 +523,7 @@ describe('ImpossibleRouter01Tests', () => {
         beforeEach(async () => {
           await addLiquidity(token0Amount, token1Amount)
           await underlyingToken0.approve(router.address, MaxUint256)
-          await pair.makeXybk(0, 100, 28, 11) // ratiostart=0, ratioend=100, boost0=10, boost1=10
+          await pair.makeXybk(28, 11) // boost0=10, boost1=10
           let t: number
           t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
           for (var i = 0; i < ONE_DAY; i++) {
@@ -624,7 +626,7 @@ describe('ImpossibleRouter01Tests', () => {
 
         beforeEach(async () => {
           await addLiquidity(token0Amount, token1Amount)
-          await pair.makeXybk(0, 100, 10, 10) // ratiostart=0, ratioend=100, boost0=10, boost1=10
+          await pair.makeXybk(10, 10) // boost0=10, boost1=10
           let t: number
           t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
           for (var i = 0; i < ONE_DAY; i++) {
@@ -680,7 +682,7 @@ describe('ImpossibleRouter01Tests', () => {
         beforeEach(async () => {
           await addLiquidity(token0Amount, token1Amount)
           await underlyingToken0.approve(router.address, MaxUint256)
-          await pair.makeXybk(0, 100, 28, 11) // ratiostart=0, ratioend=100, boost0=10, boost1=10
+          await pair.makeXybk(28, 11) // boost0=10, boost1=10
           let t: number
           t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
           for (var i = 0; i < ONE_DAY; i++) {
@@ -736,7 +738,7 @@ describe('ImpossibleRouter01Tests', () => {
         beforeEach(async () => {
           await addLiquidity(token0Amount, token1Amount)
           await underlyingToken0.approve(router.address, MaxUint256)
-          await pair.makeXybk(0, 100, 28, 11) // ratiostart=0, ratioend=100, boost0=28, boost1=11
+          await pair.makeXybk(28, 11) // boost0=28, boost1=11
           let t: number
           t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
           for (var i = 0; i < ONE_DAY; i++) {
@@ -792,7 +794,7 @@ describe('ImpossibleRouter01Tests', () => {
         beforeEach(async () => {
           await addLiquidity(token0Amount, token1Amount)
           await underlyingToken0.approve(router.address, MaxUint256)
-          await pair.makeXybk(0, 100, 28, 11) // ratiostart=0, ratioend=100, boost0=28, boost1=11
+          await pair.makeXybk(28, 11) // ratiostart=0, ratioend=100, boost0=28, boost1=11
           let t: number
           t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
           for (var i = 0; i < ONE_DAY; i++) {

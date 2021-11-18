@@ -39,7 +39,7 @@ interface PairFixture extends FactoryFixture {
 export async function pairFixture(provider: Web3Provider, [wallet]: Wallet[]): Promise<PairFixture> {
   const { factory, token0, token1 } = await factoryFixture(provider, [wallet])
 
-  await factory.setRouterAndExtension(wallet.address)
+  await factory.setRouterAndExtension(wallet.address, wallet.address)
   await factory.createPair(token0.address, token1.address, overrides)
   const pairAddress = await factory.getPair(token0.address, token1.address)
   const pair = new Contract(pairAddress, JSON.stringify(ImpossiblePair.abi), provider).connect(wallet)
@@ -60,10 +60,10 @@ interface V2Fixture {
 
 export async function v2Fixture(provider: Web3Provider, [wallet]: Wallet[]): Promise<V2Fixture> {
   // deploy tokens
-  const tokenA = await deployContract(wallet, ERC20, [expandTo18Decimals(10000)])
-  const tokenB = await deployContract(wallet, ERC20, [expandTo18Decimals(10000)])
+  const tokenA = await deployContract(wallet, ERC20, [expandTo18Decimals(1000000)])
+  const tokenB = await deployContract(wallet, ERC20, [expandTo18Decimals(1000000)])
   const WETH = await deployContract(wallet, WETH9)
-  const WETHPartner = await deployContract(wallet, ERC20, [expandTo18Decimals(10000)])
+  const WETHPartner = await deployContract(wallet, ERC20, [expandTo18Decimals(1000000)])
 
   // deploy pair factory and approve all trading tokens
   const pairFactory = await deployContract(wallet, ImpossibleSwapFactory, [wallet.address], overrides)

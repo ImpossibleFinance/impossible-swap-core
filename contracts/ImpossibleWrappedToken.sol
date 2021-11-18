@@ -15,7 +15,7 @@ contract ImpossibleWrappedToken is IImpossibleWrappedToken, ReentrancyGuard {
     uint8 public override decimals = 18;
     uint256 public override totalSupply;
 
-    address public underlying;
+    IERC20 public underlying;
     uint256 public underlyingBalance;
     uint256 public ratioNum;
     uint256 public ratioDenom;
@@ -28,35 +28,34 @@ contract ImpossibleWrappedToken is IImpossibleWrappedToken, ReentrancyGuard {
         uint256 _ratioNum,
         uint256 _ratioDenom
     ) {
-        underlying = _underlying;
+        underlying = IERC20(_underlying);
         ratioNum = _ratioNum;
         ratioDenom = _ratioDenom;
-        string memory desc = string(abi.encodePacked(IERC20(_underlying).symbol()));
+        string memory desc = string(abi.encodePacked(underlying.symbol()));
         name = string(abi.encodePacked('IF-Wrapped ', desc));
         symbol = string(abi.encodePacked('WIF ', desc));
     }
 
     // amt = amount of wrapped tokens
     function deposit(address dst, uint256 amt) public override nonReentrant returns (uint256 wad) {
-        bool success = IERC20(underlying).transferFrom(msg.sender, address(this), amt);
+        bool success = underlying.transferFrom(msg.sender, address(this), amt);
         require(success, 'ImpossibleWrapper: TRANSFERFROM_FAILED');
-        uint256 transferAmt = IERC20(underlying).balanceOf(address(this)).sub(underlyingBalance);
-        wad = transferAmt.mul(ratioNum).div(ratioDenom);
+        wad = amt.mul(ratioNum).div(ratioDenom);
         balanceOf[dst] = balanceOf[dst].add(wad);
         totalSupply = totalSupply.add(wad);
-        underlyingBalance = underlyingBalance.add(transferAmt);
+        underlyingBalance = underlyingBalance.add(amt);
         emit Transfer(address(0), dst, wad);
     }
 
     // wad = amount of wrapped tokens
     function withdraw(address dst, uint256 wad) public override nonReentrant returns (uint256 transferAmt) {
         balanceOf[msg.sender] = balanceOf[msg.sender].sub(wad);
-        emit Transfer(msg.sender, address(0), wad);
         totalSupply = totalSupply.sub(wad);
-        transferAmt = wad.mul(ratioDenom).div(ratioNum);
-        bool success = IERC20(underlying).transfer(dst, transferAmt);
-        require(success, 'IF Wrapper: UNDERLYING_TRANSFER_FAIL');
         underlyingBalance = underlyingBalance.sub(transferAmt);
+        transferAmt = wad.mul(ratioDenom).div(ratioNum);
+        bool success = underlying.transfer(dst, transferAmt);
+        require(success, 'IF Wrapper: UNDERLYING_TRANSFER_FAIL');
+        emit Transfer(msg.sender, address(0), wad);
         return transferAmt;
     }
 

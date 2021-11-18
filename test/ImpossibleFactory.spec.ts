@@ -69,7 +69,7 @@ describe('ImpossibleSwapFactory', () => {
   it('createPair:gas', async () => {
     const tx = await factory.createPair(...sortedTokens)
     const receipt = await tx.wait()
-    expect(receipt.gasUsed).to.eq(4266754) // Uni v2 was 3051505. NOTE: this gas is a within-1% approx since we comment/change variables for pair tests.
+    expect(receipt.gasUsed).to.eq(4293739) // Uni v2 was 3051505. NOTE: this gas is a within-1% approx since we comment/change variables for pair tests.
   })
 
   it('setFeeTo', async () => {
