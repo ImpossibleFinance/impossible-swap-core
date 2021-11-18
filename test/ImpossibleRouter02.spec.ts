@@ -39,7 +39,7 @@ describe('ImpossibleRouter02Tests', () => {
     router = fixture.router
     routerExtension = fixture.routerExtension
     // set whitelist router
-    await factory.setRouter(router.address)
+    await factory.setRouterAndExtension(router.address)
 
     await factory.createPair(fixture.tokenA.address, fixture.tokenB.address)
     const pairAddress = await factory.getPair(fixture.tokenA.address, fixture.tokenB.address)
@@ -130,8 +130,7 @@ describe('fee-on-transfer tokens', () => {
     // set whitelist router
     WETH = fixture.WETH
     DTT = await deployContract(wallet, DeflatingERC20, [expandTo18Decimals(10000)])
-    await factory.setRouter(router.address)
-
+    await factory.setRouterAndExtension(router.address)
     await factory.createPair(WETH.address, DTT.address)
     const pairAddress = await factory.getPair(WETH.address, DTT.address)
     pair = new Contract(pairAddress, JSON.stringify(IImpossiblePair.abi), provider).connect(wallet)
@@ -315,7 +314,7 @@ describe('fee-on-transfer tokens: reloaded', () => {
 
     router = fixture.router
     factory = fixture.pairFactory
-    await factory.setRouter(router.address)
+    await factory.setRouterAndExtension(router.address)
 
     DTT = await deployContract(wallet, DeflatingERC20, [expandTo18Decimals(10000)])
     DTT2 = await deployContract(wallet, DeflatingERC20, [expandTo18Decimals(10000)])

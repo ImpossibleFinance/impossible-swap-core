@@ -49,7 +49,8 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     address public override factory;
     address public override token0;
     address public override token1;
-    address public override router;
+    address public router;
+    address public routerExtension;
 
     uint128 private reserve0;
     uint128 private reserve1;
@@ -87,7 +88,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     uint256 public override delay = ONE_DAY_TESTING;
 
     modifier onlyIFRouter() {
-        require(msg.sender == router, 'IF: FORBIDDEN');
+        require(msg.sender == router || msg.sender == routerExtension, 'IF: FORBIDDEN');
         _;
     }
 
@@ -349,10 +350,12 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     function initialize(
         address _token0,
         address _token1,
-        address _router
+        address _router,
+        address _routerExtension
     ) external override {
         require(msg.sender == factory, 'IF: FORBIDDEN');
         router = _router;
+        routerExtension = _routerExtension;
         token0 = _token0;
         token1 = _token1;
         _initBetterDesc(_token0, _token1);

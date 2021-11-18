@@ -67,7 +67,7 @@ describe('ImpossibleRouter01Tests', () => {
       wrapFactory = fixture.wrapFactory
 
       // set whitelist router
-      await factory.setRouter(router.address)
+      await factory.setRouterAndExtension(router.address)
 
       if ((testVersion as TestVersion) == 'wrapper') {
         await wrapFactory.createPairing(underlyingTokenA.address, 1, 3) // 6 underlying token = 1 wrapped token

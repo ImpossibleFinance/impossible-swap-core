@@ -17,6 +17,7 @@ contract ImpossibleSwapFactory is IImpossibleSwapFactory {
     address public override feeTo;
     address public override governance;
     address public router;
+    address public routerExtension;
     bool public whitelist;
     mapping(address => bool) public approvedTokens;
 
@@ -50,9 +51,11 @@ contract ImpossibleSwapFactory is IImpossibleSwapFactory {
      @dev Router is checked in pair contracts to ensure calls are from IF routers only
      @dev Can only be set by IF governance
      @param _router The address of the IF router
+     @param _routerExtension The address of the IF router extension
     */
-    function setRouter(address _router) external onlyGovernance {
+    function setRouterAndExtension(address _router, address _routerExtension) external onlyGovernance {
         router = _router;
+        routerExtension = _routerExtension;
     }
 
     /**
@@ -97,7 +100,7 @@ contract ImpossibleSwapFactory is IImpossibleSwapFactory {
             pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
         }
 
-        IImpossiblePair(pair).initialize(token0, token1, router);
+        IImpossiblePair(pair).initialize(token0, token1, router, routerExtension);
 
         getPair[token0][token1] = pair;
         getPair[token1][token0] = pair;

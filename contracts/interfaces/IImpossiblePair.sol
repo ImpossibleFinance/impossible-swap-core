@@ -39,8 +39,6 @@ interface IImpossiblePair is IImpossibleERC20 {
 
     function token1() external view returns (address); // address of token1
 
-    function router() external view returns (address); // address of token1
-
     function getReserves() external view returns (uint256, uint256); // reserves of token0/token1
 
     function calcBoost() external view returns (uint256, uint256);
@@ -72,6 +70,7 @@ interface IImpossiblePair is IImpossibleERC20 {
     function delay() external view returns (uint256); // Amount of time delay required before any change to boost etc, denoted in seconds
 
     function initialize(
+        address,
         address,
         address,
         address

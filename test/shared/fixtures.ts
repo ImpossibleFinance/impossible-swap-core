@@ -39,7 +39,7 @@ interface PairFixture extends FactoryFixture {
 export async function pairFixture(provider: Web3Provider, [wallet]: Wallet[]): Promise<PairFixture> {
   const { factory, token0, token1 } = await factoryFixture(provider, [wallet])
 
-  await factory.setRouter(wallet.address)
+  await factory.setRouterAndExtension(wallet.address)
   await factory.createPair(token0.address, token1.address, overrides)
   const pairAddress = await factory.getPair(token0.address, token1.address)
   const pair = new Contract(pairAddress, JSON.stringify(ImpossiblePair.abi), provider).connect(wallet)
