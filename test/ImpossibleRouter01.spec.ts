@@ -343,7 +343,7 @@ describe('ImpossibleRouter01Tests', () => {
           expect(receipt.gasUsed).to.eq(
             {
               [TestVersion.basic]: 117734, // Uni was 101876
-              [TestVersion.wrapper]: 144852,
+              [TestVersion.wrapper]: 168185,
             }[testVersion as TestVersion]
           )
         })
@@ -397,8 +397,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 151152, // Uni was 101876
-              [TestVersion.wrapper]: 182376,
+              [TestVersion.basic]: 153490, // Uni was 101876
+              [TestVersion.wrapper]: 203942,
             }[testVersion as TestVersion]
           )
         })
@@ -452,8 +452,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 151532, // Uni was 101876
-              [TestVersion.wrapper]: 182756,
+              [TestVersion.basic]: 153697, // Uni was 101876
+              [TestVersion.wrapper]: 204149,
             }[testVersion as TestVersion]
           )
         })
@@ -507,8 +507,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 151544, // Uni was 101876
-              [TestVersion.wrapper]: 182768,
+              [TestVersion.basic]: 153709, // Uni was 101876
+              [TestVersion.wrapper]: 204161,
             }[testVersion as TestVersion]
           )
         })
@@ -562,8 +562,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 152634, // Uni was 101876
-              [TestVersion.wrapper]: 183858,
+              [TestVersion.basic]: 154472, // Uni was 101876
+              [TestVersion.wrapper]: 204924,
             }[testVersion as TestVersion]
           )
         })
@@ -611,8 +611,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 117748, // Uni was 101876
-              [TestVersion.wrapper]: 148972,
+              [TestVersion.basic]: 121858, // Uni was 101876
+              [TestVersion.wrapper]: 172309,
             }[testVersion as TestVersion]
           )
         })
@@ -666,8 +666,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 151327, // Uni was 101876
-              [TestVersion.wrapper]: 182552,
+              [TestVersion.basic]: 153586, // Uni was 101876
+              [TestVersion.wrapper]: 204037,
             }[testVersion as TestVersion]
           )
         })
@@ -722,8 +722,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 151707, // Uni was 101876
-              [TestVersion.wrapper]: 182932,
+              [TestVersion.basic]: 153793, // Uni was 101876
+              [TestVersion.wrapper]: 204244,
             }[testVersion as TestVersion]
           )
         })
@@ -778,8 +778,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 151719, // Uni was 101876
-              [TestVersion.wrapper]: 182944,
+              [TestVersion.basic]: 153805, // Uni was 101876
+              [TestVersion.wrapper]: 204256,
             }[testVersion as TestVersion]
           )
         })
@@ -834,8 +834,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 152809, // Uni was 101876
-              [TestVersion.wrapper]: 184034,
+              [TestVersion.basic]: 154568, // Uni was 101876
+              [TestVersion.wrapper]: 205019,
             }[testVersion as TestVersion]
           )
         })
@@ -881,8 +881,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 120049, // Uni was 101876
-              [TestVersion.wrapper]: 145266,
+              [TestVersion.basic]: 124196, // Uni was 101876
+              [TestVersion.wrapper]: 151758,
             }[testVersion as TestVersion]
           )
         })
@@ -932,8 +932,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 127529, // Uni was 101876
-              [TestVersion.wrapper]: 158833,
+              [TestVersion.basic]: 131663, // Uni was 101876
+              [TestVersion.wrapper]: 182194,
             }[testVersion as TestVersion]
           )
         })
@@ -983,8 +983,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 123328, // Uni was 101876
-              [TestVersion.wrapper]: 154633,
+              [TestVersion.basic]: 127436, // Uni was 101876
+              [TestVersion.wrapper]: 177967,
             }[testVersion as TestVersion]
           )
         })
@@ -1036,8 +1036,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 123995, // Uni was 101876
-              [TestVersion.wrapper]: 149213,
+              [TestVersion.basic]: 128125, // Uni was 101876
+              [TestVersion.wrapper]: 155688,
             }[testVersion as TestVersion]
           )
         })
