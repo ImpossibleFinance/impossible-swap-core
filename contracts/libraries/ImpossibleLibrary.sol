@@ -43,7 +43,7 @@ library ImpossibleLibrary {
                         hex'ff',
                         factory,
                         keccak256(abi.encodePacked(token0, token1)),
-                        hex'061dd973f52eef76eb9fbfab4c728b37da6ab0bcf78e8b4a8d6b999ecd67e44f' // init code hash
+                        hex'31762642d9ff252297aaacf50173ffd739823176ae761851c5546ebfa25e91ab' // init code hash
                     )
                 )
             )
@@ -176,10 +176,9 @@ library ImpossibleLibrary {
         /// If xybk invariant, set reserveIn/reserveOut to artificial liquidity instead of actual liquidity
         if (isXybk) {
             (uint256 boost0, uint256 boost1) = IImpossiblePair(pair).calcBoost();
-            uint256 sqrtK =
-                Math.sqrt(
-                    xybkComputeK(isMatch ? reserveIn : reserveOut, isMatch ? reserveOut : reserveIn, boost0, boost1)
-                );
+            uint256 sqrtK = Math.sqrt(
+                xybkComputeK(isMatch ? reserveIn : reserveOut, isMatch ? reserveOut : reserveIn, boost0, boost1)
+            );
             /// since balance0=balance1 only at sqrtK, if final balanceIn >= sqrtK means balanceIn >= balanceOut
             /// Use post-fee balances to maintain consistency with pair contract K invariant check
             if (amountInPostFee.add(reserveIn.mul(10000)) >= sqrtK.mul(10000)) {
@@ -254,10 +253,9 @@ library ImpossibleLibrary {
                 (boost0, boost1) = IImpossiblePair(pair).calcBoost();
             }
             if (isXybk) {
-                uint256 sqrtK =
-                    Math.sqrt(
-                        xybkComputeK(isMatch ? reserveIn : reserveOut, isMatch ? reserveOut : reserveIn, boost0, boost1)
-                    );
+                uint256 sqrtK = Math.sqrt(
+                    xybkComputeK(isMatch ? reserveIn : reserveOut, isMatch ? reserveOut : reserveIn, boost0, boost1)
+                );
                 /// since balance0=balance1 only at sqrtK, if final balanceOut >= sqrtK means balanceOut >= balanceIn
                 if (reserveOut.sub(amountOut) >= sqrtK) {
                     /// If tokenIn = token0, balanceOut > sqrtK => balance1>sqrtK, use boost1
@@ -330,10 +328,9 @@ library ImpossibleLibrary {
         /// If xybk invariant, set reserveIn/reserveOut to artificial liquidity instead of actual liquidity
         if (isXybk) {
             (uint256 boost0, uint256 boost1) = IImpossiblePair(pair).calcBoost();
-            uint256 sqrtK =
-                Math.sqrt(
-                    xybkComputeK(isMatch ? reserveIn : reserveOut, isMatch ? reserveOut : reserveIn, boost0, boost1)
-                );
+            uint256 sqrtK = Math.sqrt(
+                xybkComputeK(isMatch ? reserveIn : reserveOut, isMatch ? reserveOut : reserveIn, boost0, boost1)
+            );
             /// since balance0=balance1 only at sqrtK, if final balanceIn >= sqrtK means balanceIn >= balanceOut
             /// Use post-fee balances to maintain consistency with pair contract K invariant check
             if (amountInPostFee.add(reserveIn.mul(10000)) >= sqrtK.mul(10000)) {

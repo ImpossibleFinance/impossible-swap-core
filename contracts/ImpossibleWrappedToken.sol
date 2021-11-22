@@ -2,10 +2,12 @@
 
 pragma solidity =0.7.6;
 
-import './interfaces/IImpossibleWrappedToken.sol';
-import './interfaces/IERC20.sol';
+import './libraries/TransferHelper.sol';
 import './libraries/SafeMath.sol';
 import './libraries/ReentrancyGuard.sol';
+
+import './interfaces/IImpossibleWrappedToken.sol';
+import './interfaces/IERC20.sol';
 
 contract ImpossibleWrappedToken is IImpossibleWrappedToken, ReentrancyGuard {
     using SafeMath for uint256;
@@ -37,13 +39,13 @@ contract ImpossibleWrappedToken is IImpossibleWrappedToken, ReentrancyGuard {
     }
 
     // amt = amount of wrapped tokens
-    function deposit(address dst, uint256 amt) public override nonReentrant returns (uint256 wad) {
-        bool success = underlying.transferFrom(msg.sender, address(this), amt);
-        require(success, 'ImpossibleWrapper: TRANSFERFROM_FAILED');
-        wad = amt.mul(ratioNum).div(ratioDenom);
+    function deposit(address dst, uint256 sendAmt) public override nonReentrant returns (uint256 wad) {
+        TransferHelper.safeTransferFrom(address(underlying), msg.sender, address(this), sendAmt);
+        uint256 receiveAmt = IERC20(underlying).balanceOf(address(this)).sub(underlyingBalance);
+        wad = receiveAmt.mul(ratioNum).div(ratioDenom);
         balanceOf[dst] = balanceOf[dst].add(wad);
         totalSupply = totalSupply.add(wad);
-        underlyingBalance = underlyingBalance.add(amt);
+        underlyingBalance = underlyingBalance.add(receiveAmt);
         emit Transfer(address(0), dst, wad);
     }
 
@@ -51,15 +53,11 @@ contract ImpossibleWrappedToken is IImpossibleWrappedToken, ReentrancyGuard {
     function withdraw(address dst, uint256 wad) public override nonReentrant returns (uint256 transferAmt) {
         balanceOf[msg.sender] = balanceOf[msg.sender].sub(wad);
         totalSupply = totalSupply.sub(wad);
-        underlyingBalance = underlyingBalance.sub(transferAmt);
         transferAmt = wad.mul(ratioDenom).div(ratioNum);
-        bool success = underlying.transfer(dst, transferAmt);
-        require(success, 'IF Wrapper: UNDERLYING_TRANSFER_FAIL');
+        TransferHelper.safeTransfer(address(underlying), dst, transferAmt);
+        underlyingBalance = underlyingBalance.sub(transferAmt);
         emit Transfer(msg.sender, address(0), wad);
-        return transferAmt;
     }
-
-    function _withdraw(address dst, uint256 wad) internal returns (uint256 transferAmt) {}
 
     function amtToUnderlyingAmt(uint256 amt) public view override returns (uint256) {
         return amt.mul(ratioDenom).div(ratioNum);
@@ -72,6 +70,7 @@ contract ImpossibleWrappedToken is IImpossibleWrappedToken, ReentrancyGuard {
     }
 
     function transfer(address dst, uint256 wad) public override returns (bool) {
+        require(dst != address(0x0), 'IF Wrapper: INVALID_DST');
         return transferFrom(msg.sender, dst, wad);
     }
 
@@ -81,6 +80,7 @@ contract ImpossibleWrappedToken is IImpossibleWrappedToken, ReentrancyGuard {
         uint256 wad
     ) public override returns (bool) {
         require(balanceOf[src] >= wad, '');
+        require(dst != address(0x0), 'IF Wrapper: INVALID_DST');
 
         if (src != msg.sender && allowance[src][msg.sender] != uint256(-1)) {
             require(allowance[src][msg.sender] >= wad, 'ImpossibleWrapper: INSUFF_ALLOWANCE');

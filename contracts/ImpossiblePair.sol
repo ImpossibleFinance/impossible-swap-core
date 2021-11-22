@@ -69,6 +69,8 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     uint32 private oldBoost1 = 1;
     uint32 private newBoost0 = 1;
     uint32 private newBoost1 = 1;
+    uint32 private currBoost0 = 1;
+    uint32 private currBoost1 = 1;
 
     /**
      @dev BSC mines 10m blocks a year. uint32 will last 400 years before overflowing
@@ -143,13 +145,17 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
             uint32 _newBoost0,
             uint32 _newBoost1,
             uint32 _oldBoost0,
-            uint32 _oldBoost1
+            uint32 _oldBoost1,
+            uint32 _currBoost0,
+            uint32 _currBoost1
         )
     {
         _newBoost0 = newBoost0;
         _newBoost1 = newBoost1;
         _oldBoost0 = oldBoost0;
         _oldBoost1 = oldBoost1;
+        _currBoost0 = currBoost0;
+        _currBoost1 = currBoost1;
     }
 
     /**
@@ -190,14 +196,31 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     function calcBoost() public view override returns (uint256 _boost0, uint256 _boost1) {
         uint256 _endBlockChange = endBlockChange;
         if (block.number >= _endBlockChange) {
-            (uint32 _newBoost0, uint32 _newBoost1, , ) = getBoost();
+            (uint32 _newBoost0, uint32 _newBoost1, , , , ) = getBoost();
             _boost0 = uint256(_newBoost0);
             _boost1 = uint256(_newBoost1);
         } else {
-            (uint32 _newBoost0, uint32 _newBoost1, uint32 _oldBoost0, uint32 _oldBoost1) = getBoost();
+            (
+                uint32 _newBoost0,
+                uint32 _newBoost1,
+                uint32 _oldBoost0,
+                uint32 _oldBoost1,
+                uint32 _currBoost0,
+                uint32 _currBoost1
+            ) = getBoost();
             _boost0 = linInterpolate(_oldBoost0, _newBoost0, _endBlockChange);
             _boost1 = linInterpolate(_oldBoost1, _newBoost1, _endBlockChange);
+            if (xybkComputeK(_boost0, _boost1) < kLast) {
+                _boost0 = _currBoost0;
+                _boost1 = _currBoost1;
+            }
         }
+    }
+
+    function calcBoostWithUpdate() internal returns (uint256 _boost0, uint256 _boost1) {
+        (_boost0, _boost1) = calcBoost();
+        currBoost0 = uint32(_boost0);
+        currBoost1 = uint32(_boost1);
     }
 
     /**
@@ -386,8 +409,10 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         uint256 oldK = kLast; // gas savings
         if (feeOn) {
             if (oldK != 0) {
-                uint256 newRootK =
-                    isXybk ? Math.sqrt(xybkComputeK(_reserve0, _reserve1)) : Math.sqrt(_reserve0.mul(_reserve1));
+                (uint256 _boost0, uint256 _boost1) = calcBoostWithUpdate();
+                uint256 newRootK = isXybk
+                    ? Math.sqrt(xybkComputeK(_boost0, _boost1))
+                    : Math.sqrt(_reserve0.mul(_reserve1));
                 uint256 oldRootK = Math.sqrt(oldK);
                 if (newRootK > oldRootK) {
                     uint256 numerator = totalSupply.mul(newRootK.sub(oldRootK)).mul(4);
@@ -421,13 +446,17 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
             liquidity = Math.sqrt(amount0.mul(amount1)).sub(MINIMUM_LIQUIDITY);
             _mint(address(0), MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens
         } else {
-            liquidity = Math.min(amount0.mul(_totalSupply) / _reserve0, amount1.mul(_totalSupply) / _reserve1);
+            liquidity = Math.min(
+                _reserve0 > 0 ? amount0.mul(_totalSupply) / _reserve0 : uint256(-1),
+                _reserve1 > 0 ? amount1.mul(_totalSupply) / _reserve1 : uint256(-1)
+            );
         }
         require(liquidity > 0, 'IF: INSUFFICIENT_LIQUIDITY_MINTED');
         _mint(to, liquidity);
 
         _update(balance0, balance1);
-        if (feeOn) kLast = isXybk ? xybkComputeK(balance0, balance1) : balance0.mul(balance1);
+        (uint256 _boost0, uint256 _boost1) = calcBoostWithUpdate();
+        if (feeOn) kLast = isXybk ? xybkComputeK(_boost0, _boost1) : balance0.mul(balance1);
         emit Mint(msg.sender, amount0, amount1);
     }
 
@@ -452,19 +481,24 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
             uint256 _totalSupply = totalSupply;
             amount0 = liquidity.mul(balance0) / _totalSupply;
             amount1 = liquidity.mul(balance1) / _totalSupply;
-            require(amount0 > 0 && amount1 > 0, 'IF: INSUFFICIENT_LIQUIDITY_BURNED');
+            require(amount0 > 0 || amount1 > 0, 'IF: INSUFFICIENT_LIQUIDITY_BURNED');
 
-            if (feeOn) {
-                uint256 _feeRatio = withdrawalFeeRatio; // 1/201 ~= 0.4975%
-                amount0 -= amount0.div(_feeRatio);
-                amount1 -= amount1.div(_feeRatio);
-                // Takes the 0.4975% Fee of LP tokens and adds allowance to claim for the IImpossibleSwapFactory feeTo Address
-                uint256 transferAmount = liquidity.div(_feeRatio);
-                _safeTransfer(address(this), IImpossibleSwapFactory(factory).feeTo(), transferAmount);
-                _burn(address(this), liquidity.sub(transferAmount));
-            } else {
-                _burn(address(this), liquidity);
+            address _feeTo = IImpossibleSwapFactory(factory).feeTo();
+            // Burning fees are paid if burner is not IF fee collector
+            if (msg.sender != _feeTo) {
+                if (feeOn) {
+                    uint256 _feeRatio = withdrawalFeeRatio; // default is 1/201 ~= 0.4975%
+                    amount0 -= amount0.div(_feeRatio);
+                    amount1 -= amount1.div(_feeRatio);
+                    // Transfers withdrawalFee of LP tokens to IF feeTo
+                    uint256 transferAmount = liquidity.div(_feeRatio);
+                    _safeTransfer(address(this), IImpossibleSwapFactory(factory).feeTo(), transferAmount);
+                    _burn(address(this), liquidity.sub(transferAmount));
+                } else {
+                    _burn(address(this), liquidity);
+                }
             }
+
             _safeTransfer(_token0, to, amount0);
             _safeTransfer(_token1, to, amount1);
         }
@@ -532,8 +566,8 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
                     'IF: TRADE_NOT_ALLOWED'
                 );
 
-                uint256 scaledOldK = xybkComputeK(_reserve0, _reserve1).mul(10000**2);
-                (uint256 boost0, uint256 boost1) = calcBoost();
+                (uint256 boost0, uint256 boost1) = calcBoostWithUpdate();
+                uint256 scaledOldK = xybkComputeK(boost0, boost1).mul(10000**2);
                 require(
                     xybkCheckK(boost0, boost1, balance0Adjusted, balance1Adjusted, scaledOldK),
                     'IF: INSUFFICIENT_XYBK_K'
@@ -554,12 +588,12 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     /** 
      @notice Calculates xybk K value
      @dev Uses library function, same as router
-     @param _reserve0 Balance of token0 in the pool
-     @param _reserve1 Balance of token1 in the pool
+     @param _boost0 boost0 to calculate xybk K with
+     @param _boost1 boost1 to calculate xybk K with
      @return k The k value given these reserves and boost values
      */
-    function xybkComputeK(uint256 _reserve0, uint256 _reserve1) internal view returns (uint256 k) {
-        (uint256 _boost0, uint256 _boost1) = calcBoost();
+    function xybkComputeK(uint256 _boost0, uint256 _boost1) internal view returns (uint256 k) {
+        (uint256 _reserve0, uint256 _reserve1) = getReserves();
         uint256 boost = (_reserve0 > _reserve1) ? _boost0.sub(1) : _boost1.sub(1);
         uint256 denom = boost.mul(2).add(1); // 1+2*boost
         uint256 term = boost.mul(_reserve0.add(_reserve1)).div(denom.mul(2)); // boost*(x+y)/(2+4*boost)

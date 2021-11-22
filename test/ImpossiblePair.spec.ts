@@ -24,14 +24,14 @@ let t: number
 let boost: boostRes
 
 const overrides = {
-  gasLimit: 9999999
+  gasLimit: 9999999,
 }
 
 describe('ImpossiblePair', () => {
   const provider = new MockProvider({
     hardfork: 'istanbul',
     mnemonic: 'horn horn horn horn horn horn horn horn horn horn horn horn',
-    gasLimit: 9999999
+    gasLimit: 9999999,
   })
   const [wallet, other] = provider.getWallets()
   const loadFixture = createFixtureLoader(provider, [wallet])
@@ -54,6 +54,7 @@ describe('ImpossiblePair', () => {
     const token1Amount = expandTo18Decimals(4)
     await token0.transfer(pair.address, token0Amount)
     await token1.transfer(pair.address, token1Amount)
+
     await pair.makeXybk(10, 10) // boost0=10, boost1=10
 
     const expectedLiquidity = expandTo18Decimals(2)
@@ -117,8 +118,8 @@ describe('ImpossiblePair', () => {
   const uniswapTestCases: BigNumber[][] = [
     [1, 100, 100, '987158034397061298'],
     [1, 1000, 1000, '996006981039903216'],
-    [10, '982471445826763938256', '987471445826763938256', '9920071714348123486']
-  ].map(a => a.map(n => (typeof n === 'string' ? bigNumberify(n) : expandTo18Decimals(n))))
+    [10, '982471445826763938256', '987471445826763938256', '9920071714348123486'],
+  ].map((a) => a.map((n) => (typeof n === 'string' ? bigNumberify(n) : expandTo18Decimals(n))))
 
   uniswapTestCases.forEach((swapTestCase, i) => {
     it(`uni slippage test:${i}`, async () => {
@@ -140,8 +141,8 @@ describe('ImpossiblePair', () => {
   const ImpossibleswapTestCases: BigNumber[][] = [
     [1, 10, 10, '987158034397061298'], // 10:10 xybk pool with 10 boost behaves exactly like a uni pool with 100:100 tokens
     [1, 100, 100, '996006981039903216'], // 100:100 xybk pool with 10 boost behaves like a uni 1000:1000
-    [10, 96, 101, '9920071714348123486'] // 96:101 xybk pool with 10 boost behaves like a uni 982:987
-  ].map(a => a.map(n => (typeof n === 'string' ? bigNumberify(n) : expandTo18Decimals(n))))
+    [10, 96, 101, '9920071714348123486'], // 96:101 xybk pool with 10 boost behaves like a uni 982:987
+  ].map((a) => a.map((n) => (typeof n === 'string' ? bigNumberify(n) : expandTo18Decimals(n))))
   ImpossibleswapTestCases.forEach((swapTestCase, i) => {
     it(`xybk slippage test:${i}`, async () => {
       await pair.makeXybk(10, 10) // boost0=10, boost1=10
@@ -289,7 +290,7 @@ describe('ImpossiblePair', () => {
     await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
     const tx = await pair.swap(swapAmount, 0, wallet.address, '0x', overrides) // Testing gas fee
     const receipt = await tx.wait()
-    expect(receipt.gasUsed).to.eq(87461)
+    expect(receipt.gasUsed).to.eq(92472)
   })
 
   interface linInterpolateTestCase {
@@ -305,8 +306,8 @@ describe('ImpossiblePair', () => {
       tests: [
         [1, 2, 3],
         [2, 3, 5],
-        [10, 11, 21]
-      ]
+        [10, 11, 21],
+      ],
     },
     {
       b1: 87,
@@ -321,9 +322,9 @@ describe('ImpossiblePair', () => {
         [7, 13, 17],
         [8, 14, 19],
         [30, 52, 71],
-        [45, 78, 107]
-      ]
-    }
+        [45, 78, 107],
+      ],
+    },
   ]
   /* Python code for testcase 2:
   import numpy as np
@@ -368,7 +369,7 @@ describe('ImpossiblePair', () => {
         const expectedBoost = [
           [1, 50, 100],
           [2, 49, 98],
-          [11, 39, 78]
+          [11, 39, 78],
         ]
 
         for (var j = 0; j < expectedBoost.length; j++) {

@@ -18,7 +18,7 @@ describe('ImpossibleSwapFactory', () => {
   const provider = new MockProvider({
     hardfork: 'istanbul',
     mnemonic: 'horn horn horn horn horn horn horn horn horn horn horn horn',
-    gasLimit: 9999999
+    gasLimit: 9999999,
   })
   const [wallet, other] = provider.getWallets()
   const loadFixture = createFixtureLoader(provider, [wallet, other])
@@ -69,7 +69,7 @@ describe('ImpossibleSwapFactory', () => {
   it('createPair:gas', async () => {
     const tx = await factory.createPair(...sortedTokens)
     const receipt = await tx.wait()
-    expect(receipt.gasUsed).to.eq(4293739) // Uni v2 was 3051505. NOTE: this gas is a within-1% approx since we comment/change variables for pair tests.
+    expect(receipt.gasUsed).to.eq(4352846) // Uni v2 was 3051505. NOTE: this gas is a probably only a within-1% approx since live deployment has diff values
   })
 
   it('setFeeTo', async () => {

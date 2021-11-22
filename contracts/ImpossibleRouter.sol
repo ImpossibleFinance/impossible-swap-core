@@ -2,14 +2,14 @@
 pragma solidity =0.7.6;
 pragma experimental ABIEncoderV2;
 
-import './interfaces/IImpossibleSwapFactory.sol';
-import '@uniswap/lib/contracts/libraries/TransferHelper.sol';
+import './libraries/TransferHelper.sol';
 import './libraries/ReentrancyGuard.sol';
-
-import './interfaces/IImpossibleRouterExtension.sol';
-import './interfaces/IImpossibleRouter.sol';
 import './libraries/ImpossibleLibrary.sol';
 import './libraries/SafeMath.sol';
+
+import './interfaces/IImpossibleSwapFactory.sol';
+import './interfaces/IImpossibleRouterExtension.sol';
+import './interfaces/IImpossibleRouter.sol';
 import './interfaces/IERC20.sol';
 import './interfaces/IWETH.sol';
 import './interfaces/IImpossibleWrappedToken.sol';

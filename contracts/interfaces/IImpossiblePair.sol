@@ -4,7 +4,12 @@ pragma solidity =0.7.6;
 import './IImpossibleERC20.sol';
 
 interface IImpossiblePair is IImpossibleERC20 {
-    enum TradeState {SELL_ALL, SELL_TOKEN_0, SELL_TOKEN_1, SELL_NONE}
+    enum TradeState {
+        SELL_ALL,
+        SELL_TOKEN_0,
+        SELL_TOKEN_1,
+        SELL_NONE
+    }
 
     event Mint(address indexed sender, uint256 amount0, uint256 amount1);
     event Burn(address indexed sender, uint256 amount0, uint256 amount1, address indexed to);

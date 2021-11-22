@@ -16,12 +16,12 @@ let flag = 0
 chai.use(solidity)
 
 const overrides = {
-  gasLimit: 9999999
+  gasLimit: 9999999,
 }
 
 enum TestVersion {
   basic = 'basic',
-  wrapper = 'wrapper'
+  wrapper = 'wrapper',
 }
 
 describe('ImpossibleRouter01Tests', () => {
@@ -29,7 +29,7 @@ describe('ImpossibleRouter01Tests', () => {
     const provider = new MockProvider({
       hardfork: 'istanbul',
       mnemonic: 'horn horn horn horn horn horn horn horn horn horn horn horn',
-      gasLimit: 9999999
+      gasLimit: 9999999,
     })
     const [wallet] = provider.getWallets()
     const loadFixture = createFixtureLoader(provider, [wallet])
@@ -58,7 +58,7 @@ describe('ImpossibleRouter01Tests', () => {
     let pair: Contract
     let WETHPair: Contract
 
-    beforeEach(async function() {
+    beforeEach(async function () {
       const fixture = await loadFixture(v2Fixture)
       WETH = fixture.WETH
       underlyingWETHPartner = fixture.WETHPartner
@@ -135,7 +135,7 @@ describe('ImpossibleRouter01Tests', () => {
       }
     })
 
-    afterEach(async function() {
+    afterEach(async function () {
       expect(await provider.getBalance(router.address)).to.eq(Zero)
     })
 
@@ -179,7 +179,7 @@ describe('ImpossibleRouter01Tests', () => {
         expect(
           await router.addLiquidityETH(WETHPartner.address, WETHPartnerAmount, 0, 0, wallet.address, MaxUint256, {
             ...overrides,
-            value: ETHAmount
+            value: ETHAmount,
           })
         )
         expect(await WETHPair.balanceOf(wallet.address)).to.eq(expectedLiquidity.sub(MINIMUM_LIQUIDITY))
@@ -343,7 +343,7 @@ describe('ImpossibleRouter01Tests', () => {
           expect(receipt.gasUsed).to.eq(
             {
               [TestVersion.basic]: 117734, // Uni was 101876
-              [TestVersion.wrapper]: 144852
+              [TestVersion.wrapper]: 144852,
             }[testVersion as TestVersion]
           )
         })
@@ -398,7 +398,7 @@ describe('ImpossibleRouter01Tests', () => {
           expect(receipt.gasUsed).to.eq(
             {
               [TestVersion.basic]: 151152, // Uni was 101876
-              [TestVersion.wrapper]: 182376
+              [TestVersion.wrapper]: 182376,
             }[testVersion as TestVersion]
           )
         })
@@ -453,7 +453,7 @@ describe('ImpossibleRouter01Tests', () => {
           expect(receipt.gasUsed).to.eq(
             {
               [TestVersion.basic]: 151532, // Uni was 101876
-              [TestVersion.wrapper]: 182756
+              [TestVersion.wrapper]: 182756,
             }[testVersion as TestVersion]
           )
         })
@@ -508,7 +508,7 @@ describe('ImpossibleRouter01Tests', () => {
           expect(receipt.gasUsed).to.eq(
             {
               [TestVersion.basic]: 151544, // Uni was 101876
-              [TestVersion.wrapper]: 182768
+              [TestVersion.wrapper]: 182768,
             }[testVersion as TestVersion]
           )
         })
@@ -563,7 +563,7 @@ describe('ImpossibleRouter01Tests', () => {
           expect(receipt.gasUsed).to.eq(
             {
               [TestVersion.basic]: 152634, // Uni was 101876
-              [TestVersion.wrapper]: 183858
+              [TestVersion.wrapper]: 183858,
             }[testVersion as TestVersion]
           )
         })
@@ -612,7 +612,7 @@ describe('ImpossibleRouter01Tests', () => {
           expect(receipt.gasUsed).to.eq(
             {
               [TestVersion.basic]: 117748, // Uni was 101876
-              [TestVersion.wrapper]: 148972
+              [TestVersion.wrapper]: 148972,
             }[testVersion as TestVersion]
           )
         })
@@ -667,7 +667,7 @@ describe('ImpossibleRouter01Tests', () => {
           expect(receipt.gasUsed).to.eq(
             {
               [TestVersion.basic]: 151327, // Uni was 101876
-              [TestVersion.wrapper]: 182552
+              [TestVersion.wrapper]: 182552,
             }[testVersion as TestVersion]
           )
         })
@@ -723,7 +723,7 @@ describe('ImpossibleRouter01Tests', () => {
           expect(receipt.gasUsed).to.eq(
             {
               [TestVersion.basic]: 151707, // Uni was 101876
-              [TestVersion.wrapper]: 182932
+              [TestVersion.wrapper]: 182932,
             }[testVersion as TestVersion]
           )
         })
@@ -779,7 +779,7 @@ describe('ImpossibleRouter01Tests', () => {
           expect(receipt.gasUsed).to.eq(
             {
               [TestVersion.basic]: 151719, // Uni was 101876
-              [TestVersion.wrapper]: 182944
+              [TestVersion.wrapper]: 182944,
             }[testVersion as TestVersion]
           )
         })
@@ -835,7 +835,7 @@ describe('ImpossibleRouter01Tests', () => {
           expect(receipt.gasUsed).to.eq(
             {
               [TestVersion.basic]: 152809, // Uni was 101876
-              [TestVersion.wrapper]: 184034
+              [TestVersion.wrapper]: 184034,
             }[testVersion as TestVersion]
           )
         })
@@ -856,7 +856,7 @@ describe('ImpossibleRouter01Tests', () => {
           await expect(
             router.swapExactETHForTokens(0, [WETH.address, WETHPartner.address], wallet.address, MaxUint256, {
               ...overrides,
-              value: swapAmount
+              value: swapAmount,
             })
           )
         })
@@ -875,14 +875,14 @@ describe('ImpossibleRouter01Tests', () => {
             MaxUint256,
             {
               ...overrides,
-              value: swapAmount
+              value: swapAmount,
             }
           )
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
               [TestVersion.basic]: 120049, // Uni was 101876
-              [TestVersion.wrapper]: 145266
+              [TestVersion.wrapper]: 145266,
             }[testVersion as TestVersion]
           )
         })
@@ -933,7 +933,7 @@ describe('ImpossibleRouter01Tests', () => {
           expect(receipt.gasUsed).to.eq(
             {
               [TestVersion.basic]: 127529, // Uni was 101876
-              [TestVersion.wrapper]: 158833
+              [TestVersion.wrapper]: 158833,
             }[testVersion as TestVersion]
           )
         })
@@ -984,7 +984,7 @@ describe('ImpossibleRouter01Tests', () => {
           expect(receipt.gasUsed).to.eq(
             {
               [TestVersion.basic]: 123328, // Uni was 101876
-              [TestVersion.wrapper]: 154633
+              [TestVersion.wrapper]: 154633,
             }[testVersion as TestVersion]
           )
         })
@@ -1010,7 +1010,7 @@ describe('ImpossibleRouter01Tests', () => {
               MaxUint256,
               {
                 ...overrides,
-                value: expectedSwapAmount
+                value: expectedSwapAmount,
               }
             )
           )
@@ -1030,14 +1030,14 @@ describe('ImpossibleRouter01Tests', () => {
             MaxUint256,
             {
               ...overrides,
-              value: expectedSwapAmount
+              value: expectedSwapAmount,
             }
           )
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
               [TestVersion.basic]: 123995, // Uni was 101876
-              [TestVersion.wrapper]: 149213
+              [TestVersion.wrapper]: 149213,
             }[testVersion as TestVersion]
           )
         })

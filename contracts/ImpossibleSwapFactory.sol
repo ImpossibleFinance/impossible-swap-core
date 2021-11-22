@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity =0.7.6;
 
-import './interfaces/IImpossibleSwapFactory.sol';
 import './ImpossiblePair.sol';
 import './ImpossibleWrappedToken.sol';
+
+import './interfaces/IImpossibleSwapFactory.sol';
 
 /**
     @title  Swap Factory for Impossible Swap V3

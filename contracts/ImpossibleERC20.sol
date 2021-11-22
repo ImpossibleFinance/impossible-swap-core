@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3
 pragma solidity =0.7.6;
 
-import './interfaces/IImpossibleERC20.sol';
 import './libraries/SafeMath.sol';
+
+import './interfaces/IImpossibleERC20.sol';
 import './interfaces/IERC20.sol';
 
 contract ImpossibleERC20 is IImpossibleERC20 {
@@ -113,14 +114,13 @@ contract ImpossibleERC20 is IImpossibleERC20 {
         bytes32 s
     ) external override {
         require(deadline >= block.timestamp, 'IF: EXPIRED');
-        bytes32 digest =
-            keccak256(
-                abi.encodePacked(
-                    '\x19\x01',
-                    DOMAIN_SEPARATOR,
-                    keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, value, nonces[owner]++, deadline))
-                )
-            );
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                '\x19\x01',
+                DOMAIN_SEPARATOR,
+                keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, value, nonces[owner]++, deadline))
+            )
+        );
         address recoveredAddress = ecrecover(digest, v, r, s);
         require(recoveredAddress != address(0) && recoveredAddress == owner, 'IF: INVALID_SIGNATURE');
         _approve(owner, spender, value);

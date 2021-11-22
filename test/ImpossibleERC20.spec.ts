@@ -18,7 +18,7 @@ describe('ImpossibleSwap ERC20', () => {
   const provider = new MockProvider({
     hardfork: 'istanbul',
     mnemonic: 'horn horn horn horn horn horn horn horn horn horn horn horn',
-    gasLimit: 9999999
+    gasLimit: 9999999,
   })
   const [wallet, other] = provider.getWallets()
 
@@ -45,7 +45,7 @@ describe('ImpossibleSwap ERC20', () => {
             keccak256(toUtf8Bytes(name)),
             keccak256(toUtf8Bytes('1')),
             1,
-            token.address
+            token.address,
           ]
         )
       )

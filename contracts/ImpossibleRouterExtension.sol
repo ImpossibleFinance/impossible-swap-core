@@ -25,8 +25,9 @@ contract ImpossibleRouterExtension is IImpossibleRouterExtension {
             (address input, address output) = (path[i], path[i + 1]);
             (address token0, ) = ImpossibleLibrary.sortTokens(input, output);
             uint256 amountOut = amounts[i + 1];
-            (uint256 amount0Out, uint256 amount1Out) =
-                input == token0 ? (uint256(0), amountOut) : (amountOut, uint256(0));
+            (uint256 amount0Out, uint256 amount1Out) = input == token0
+                ? (uint256(0), amountOut)
+                : (amountOut, uint256(0));
             address to = i < path.length - 2 ? ImpossibleLibrary.pairFor(factory, output, path[i + 2]) : msg.sender;
             IImpossiblePair(ImpossibleLibrary.pairFor(factory, input, output)).swap(
                 amount0Out,
@@ -45,8 +46,11 @@ contract ImpossibleRouterExtension is IImpossibleRouterExtension {
     function swapSupportingFeeOnTransferTokens(address[] memory path) public override {
         for (uint256 i; i < path.length - 1; i++) {
             (address input, address output) = (path[i], path[i + 1]);
-            (uint256 amount0Out, uint256 amount1Out) =
-                ImpossibleLibrary.getAmountOutFeeOnTransfer(input, output, factory);
+            (uint256 amount0Out, uint256 amount1Out) = ImpossibleLibrary.getAmountOutFeeOnTransfer(
+                input,
+                output,
+                factory
+            );
             address to = i < path.length - 2 ? ImpossibleLibrary.pairFor(factory, output, path[i + 2]) : msg.sender;
             IImpossiblePair(ImpossibleLibrary.pairFor(factory, input, output)).swap(
                 amount0Out,

@@ -14,14 +14,14 @@ import { ecsign } from 'ethereumjs-util'
 chai.use(solidity)
 
 const overrides = {
-  gasLimit: 9999999
+  gasLimit: 9999999,
 }
 
 describe('ImpossibleRouter02Tests', () => {
   const provider = new MockProvider({
     hardfork: 'istanbul',
     mnemonic: 'horn horn horn horn horn horn horn horn horn horn horn horn',
-    gasLimit: 9999999
+    gasLimit: 9999999,
   })
   const [wallet] = provider.getWallets()
   const loadFixture = createFixtureLoader(provider, [wallet])
@@ -33,7 +33,7 @@ describe('ImpossibleRouter02Tests', () => {
   let pair: Contract
   let factory: Contract
 
-  beforeEach(async function() {
+  beforeEach(async function () {
     const fixture = await loadFixture(v2Fixture)
     factory = fixture.pairFactory
     router = fixture.router
@@ -113,7 +113,7 @@ describe('fee-on-transfer tokens', () => {
   const provider = new MockProvider({
     hardfork: 'istanbul',
     mnemonic: 'horn horn horn horn horn horn horn horn horn horn horn horn',
-    gasLimit: 9999999
+    gasLimit: 9999999,
   })
   const [wallet] = provider.getWallets()
   const loadFixture = createFixtureLoader(provider, [wallet])
@@ -124,7 +124,7 @@ describe('fee-on-transfer tokens', () => {
   let router: Contract
   let routerExtension: Contract
   let pair: Contract
-  beforeEach(async function() {
+  beforeEach(async function () {
     const fixture = await loadFixture(v2Fixture)
     factory = fixture.pairFactory
     router = fixture.router
@@ -138,7 +138,7 @@ describe('fee-on-transfer tokens', () => {
     pair = new Contract(pairAddress, JSON.stringify(IImpossiblePair.abi), provider).connect(wallet)
   })
 
-  afterEach(async function() {
+  afterEach(async function () {
     expect(await provider.getBalance(router.address)).to.eq(0)
   })
 
@@ -146,7 +146,7 @@ describe('fee-on-transfer tokens', () => {
     await DTT.approve(router.address, MaxUint256)
     await router.addLiquidityETH(DTT.address, DTTAmount, DTTAmount, WETHAmount, wallet.address, MaxUint256, {
       ...overrides,
-      value: WETHAmount
+      value: WETHAmount,
     })
   }
 
@@ -175,9 +175,7 @@ describe('fee-on-transfer tokens', () => {
   })
 
   it('removeLiquidityETHWithPermitSupportingFeeOnTransferTokens', async () => {
-    const DTTAmount = expandTo18Decimals(1)
-      .mul(100)
-      .div(99)
+    const DTTAmount = expandTo18Decimals(1).mul(100).div(99)
     const ETHAmount = expandTo18Decimals(4)
     await addLiquidity(DTTAmount, ETHAmount)
 
@@ -216,9 +214,7 @@ describe('fee-on-transfer tokens', () => {
   })
 
   describe('swapExactTokensForTokensSupportingFeeOnTransferTokens', () => {
-    const DTTAmount = expandTo18Decimals(5)
-      .mul(100)
-      .div(99)
+    const DTTAmount = expandTo18Decimals(5).mul(100).div(99)
     const ETHAmount = expandTo18Decimals(10)
     const amountIn = expandTo18Decimals(1)
 
@@ -257,9 +253,7 @@ describe('fee-on-transfer tokens', () => {
 
   // ETH -> DTT
   it('swapExactETHForTokensSupportingFeeOnTransferTokens', async () => {
-    const DTTAmount = expandTo18Decimals(10)
-      .mul(100)
-      .div(99)
+    const DTTAmount = expandTo18Decimals(10).mul(100).div(99)
     const ETHAmount = expandTo18Decimals(5)
     const swapAmount = expandTo18Decimals(1)
     await addLiquidity(DTTAmount, ETHAmount)
@@ -271,16 +265,14 @@ describe('fee-on-transfer tokens', () => {
       MaxUint256,
       {
         ...overrides,
-        value: swapAmount
+        value: swapAmount,
       }
     )
   })
 
   // DTT -> ETH
   it('swapExactTokensForETHSupportingFeeOnTransferTokens', async () => {
-    const DTTAmount = expandTo18Decimals(5)
-      .mul(100)
-      .div(99)
+    const DTTAmount = expandTo18Decimals(5).mul(100).div(99)
     const ETHAmount = expandTo18Decimals(10)
     const swapAmount = expandTo18Decimals(1)
 
@@ -302,7 +294,7 @@ describe('fee-on-transfer tokens: reloaded', () => {
   const provider = new MockProvider({
     hardfork: 'istanbul',
     mnemonic: 'horn horn horn horn horn horn horn horn horn horn horn horn',
-    gasLimit: 9999999
+    gasLimit: 9999999,
   })
   const [wallet] = provider.getWallets()
   const loadFixture = createFixtureLoader(provider, [wallet])
@@ -312,7 +304,7 @@ describe('fee-on-transfer tokens: reloaded', () => {
   let router: Contract
   let routerExtension: Contract
   let factory: Contract
-  beforeEach(async function() {
+  beforeEach(async function () {
     const fixture = await loadFixture(v2Fixture)
 
     router = fixture.router
@@ -328,7 +320,7 @@ describe('fee-on-transfer tokens: reloaded', () => {
     const pairAddress = await fixture.pairFactory.getPair(DTT.address, DTT2.address)
   })
 
-  afterEach(async function() {
+  afterEach(async function () {
     expect(await provider.getBalance(router.address)).to.eq(0)
   })
 
@@ -349,9 +341,7 @@ describe('fee-on-transfer tokens: reloaded', () => {
   }
 
   describe('swapExactTokensForTokensSupportingFeeOnTransferTokens', () => {
-    const DTTAmount = expandTo18Decimals(5)
-      .mul(100)
-      .div(99)
+    const DTTAmount = expandTo18Decimals(5).mul(100).div(99)
     const DTT2Amount = expandTo18Decimals(5)
     const amountIn = expandTo18Decimals(1)
 
