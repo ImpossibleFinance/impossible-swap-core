@@ -1,5 +1,5 @@
 //TODO: Before test, comment out line 105 in onlyGovernance modifier. This allows pools to be made stable for our tests.
-//TODO: Also, change delay of ONE_DAY to 50 instead of ONE_DAY = 24 * 60 * 60 / 3
+//TODO: Also, change delay of TEST_DELAY to 50 instead of TEST_DELAY = 24 * 60 * 60 / 3
 //TODO: These todos are left uncommented on purpose - once these actions are done, comment them and test will run without errors
 
 import chai, { expect } from 'chai'
@@ -12,7 +12,7 @@ import { pairFixture } from './shared/fixtures'
 import { AddressZero } from 'ethers/constants'
 
 const MINIMUM_LIQUIDITY = bigNumberify(10).pow(3)
-const ONE_DAY = 50
+const TEST_DELAY = 50
 
 chai.use(solidity)
 
@@ -49,13 +49,11 @@ describe('ImpossiblePair', () => {
   })
 
   // Minting/burning has no change in uni or xybk variant
-  it('mint', async () => {
+  it('mint, xyk and xybk', async () => {
     const token0Amount = expandTo18Decimals(1)
     const token1Amount = expandTo18Decimals(4)
     await token0.transfer(pair.address, token0Amount)
     await token1.transfer(pair.address, token1Amount)
-
-    await pair.makeXybk(10, 10) // boost0=10, boost1=10
 
     const expectedLiquidity = expandTo18Decimals(2)
     await expect(pair.mint(wallet.address, overrides))
@@ -76,13 +74,31 @@ describe('ImpossiblePair', () => {
     expect(reserves[0]).to.eq(token0Amount)
     expect(reserves[1]).to.eq(token1Amount)
     expect(await pair.kLast()).to.eq(0)
+
+    await pair.makeXybk(10, 10) // boost0=10, boost1=10
+    let t: number
+    t = (await provider.getBlock('latest')).timestamp // Mine blocks till boost kicks in for boost=10
+    for (var i = 0; i < TEST_DELAY; i++) {
+      await mineBlock(provider, ++t)
+    }
+
+    await token1.transfer(pair.address, token1Amount)
+    await pair.swap(token0Amount, 0, wallet.address, '0x', overrides)
+
+    await token1.transfer(pair.address, token1Amount.mul(2))
+    await expect(pair.mint(wallet.address, overrides))
+      .to.emit(pair, 'Transfer')
+      .withArgs(AddressZero, wallet.address, expectedLiquidity)
+      .to.emit(pair, 'Sync')
+      .withArgs(0, token1Amount.mul(4))
+      .to.emit(pair, 'Mint')
+      .withArgs(wallet.address, 0, token1Amount.mul(2))
   })
 
-  it('burn', async () => {
+  it('burn, xyk', async () => {
     const token0Amount = expandTo18Decimals(3)
     const token1Amount = expandTo18Decimals(3)
     await addLiquidity(token0Amount, token1Amount)
-    await pair.makeXybk(10, 10) // boost0=10, boost1=10
 
     const expectedLiquidity = expandTo18Decimals(3)
     await pair.transfer(pair.address, expectedLiquidity.sub(MINIMUM_LIQUIDITY))
@@ -106,6 +122,43 @@ describe('ImpossiblePair', () => {
     const totalSupplyToken1 = await token1.totalSupply()
     expect(await token0.balanceOf(wallet.address)).to.eq(totalSupplyToken0.sub(1000))
     expect(await token1.balanceOf(wallet.address)).to.eq(totalSupplyToken1.sub(1000))
+  })
+
+  it('burn, xybk', async () => {
+    const token0Amount = expandTo18Decimals(1)
+    const token1Amount = expandTo18Decimals(4)
+    await addLiquidity(token0Amount, token1Amount)
+
+    await pair.makeXybk(10, 10) // boost0=10, boost1=10
+    let t: number
+    t = (await provider.getBlock('latest')).timestamp // Mine blocks till boost kicks in for boost=10
+    for (var i = 0; i < TEST_DELAY; i++) {
+      await mineBlock(provider, ++t)
+    }
+
+    await token1.transfer(pair.address, token1Amount)
+    await pair.swap(token0Amount, 0, wallet.address, '0x', overrides)
+
+    const expectedLiquidity = expandTo18Decimals(2)
+    await pair.transfer(pair.address, expectedLiquidity.div(2))
+    await expect(pair.burn(wallet.address, overrides))
+      .to.emit(pair, 'Transfer')
+      .withArgs(pair.address, AddressZero, expectedLiquidity.div(2))
+      .to.emit(token1, 'Transfer')
+      .withArgs(pair.address, wallet.address, token1Amount)
+      .to.emit(pair, 'Sync')
+      .withArgs(0, token1Amount)
+      .to.emit(pair, 'Burn')
+      .withArgs(wallet.address, 0, token1Amount, wallet.address)
+
+    expect(await pair.balanceOf(wallet.address)).to.eq(expectedLiquidity.div(2).sub(1000))
+    expect(await pair.totalSupply()).to.eq(expectedLiquidity.div(2))
+    expect(await token0.balanceOf(pair.address)).to.eq(0)
+    expect(await token1.balanceOf(pair.address)).to.eq(token1Amount)
+    const totalSupplyToken0 = await token0.totalSupply()
+    const totalSupplyToken1 = await token1.totalSupply()
+    expect(await token0.balanceOf(wallet.address)).to.eq(totalSupplyToken0)
+    expect(await token1.balanceOf(wallet.address)).to.eq(totalSupplyToken1.sub(token1Amount))
   })
 
   async function addLiquidity(token0Amount: BigNumber, token1Amount: BigNumber) {
@@ -147,7 +200,7 @@ describe('ImpossiblePair', () => {
     it(`xybk slippage test:${i}`, async () => {
       await pair.makeXybk(10, 10) // boost0=10, boost1=10
       t = (await provider.getBlock('latest')).timestamp
-      for (var i = 0; i < ONE_DAY; i++) {
+      for (var i = 0; i < TEST_DELAY; i++) {
         await mineBlock(provider, ++t)
       }
       const [swapAmount, token0Amount, token1Amount, expectedOutputAmount] = swapTestCase
@@ -194,7 +247,7 @@ describe('ImpossiblePair', () => {
     await addLiquidity(token0Amount, token1Amount)
     await pair.makeXybk(10, 10) // boost0=10, boost1=10
     t = (await provider.getBlock('latest')).timestamp
-    for (var i = 0; i < ONE_DAY; i++) {
+    for (var i = 0; i < TEST_DELAY; i++) {
       await mineBlock(provider, ++t)
     }
     const swapAmount = expandTo18Decimals(1)
@@ -225,13 +278,13 @@ describe('ImpossiblePair', () => {
     await addLiquidity(token0Amount, token1Amount)
     await pair.makeXybk(10, 10)
     t = (await provider.getBlock('latest')).timestamp
-    for (var i = 0; i < ONE_DAY - 1; i++) {
+    for (var i = 0; i < TEST_DELAY - 1; i++) {
       await mineBlock(provider, ++t)
     }
     await expect(pair.makeUni()).to.be.revertedWith('IF: INVALID_BOOST')
     await pair.updateBoost(1, 1)
     t = (await provider.getBlock('latest')).timestamp
-    for (var i = 0; i < ONE_DAY - 2; i++) {
+    for (var i = 0; i < TEST_DELAY - 2; i++) {
       await mineBlock(provider, ++t)
     }
     await expect(pair.makeUni()).to.be.revertedWith('IF: BOOST_ALREADY_CHANGING')
@@ -280,7 +333,7 @@ describe('ImpossiblePair', () => {
     await addLiquidity(token0Amount, token1Amount)
     await pair.makeXybk(10, 10) // boost0=10, boost1=10
     t = (await provider.getBlock('latest')).timestamp
-    for (var i = 0; i < ONE_DAY; i++) {
+    for (var i = 0; i < TEST_DELAY; i++) {
       await mineBlock(provider, ++t)
     }
     await pair.sync(overrides)
@@ -301,8 +354,8 @@ describe('ImpossiblePair', () => {
 
   const linInterpolate: linInterpolateTestCase[] = [
     {
-      b1: ONE_DAY + 1,
-      b2: 2 * ONE_DAY + 1, // Interpolate between 1 and 51 -> increases 1 per block, 1 and 101 -> increases 2 per block
+      b1: TEST_DELAY + 1,
+      b2: 2 * TEST_DELAY + 1, // Interpolate between 1 and 51 -> increases 1 per block, 1 and 101 -> increases 2 per block
       tests: [
         [1, 2, 3],
         [2, 3, 5],
@@ -426,5 +479,51 @@ describe('ImpossiblePair', () => {
     // ...because the initial liquidity amounts were equal
     expect(await token0.balanceOf(pair.address)).to.eq(bigNumberify(1000).add('4971360769329898722'))
     expect(await token1.balanceOf(pair.address)).to.eq(bigNumberify(1000).add('4981293533232937554'))
+  })
+
+  enum TradeState {
+    SELL_ALL = 0,
+    SELL_TOKEN_0 = 1,
+    SELL_TOKEN_1 = 2,
+    SELL_NONE = 3,
+  }
+
+  it('test tradestate', async () => {
+    const token0Amount = expandTo18Decimals(1000)
+    const token1Amount = expandTo18Decimals(1000)
+    await addLiquidity(token0Amount, token1Amount)
+
+    await pair.makeXybk(10, 10) // can only stop trade in xybk mode
+    const sendAmount = expandTo18Decimals(2)
+    const receiveAmount = expandTo18Decimals(1)
+
+    await token0.transfer(pair.address, sendAmount)
+    for (const i of [TradeState.SELL_TOKEN_0, TradeState.SELL_NONE]) {
+      await pair.updateTradeState(i)
+      await token0.transfer(pair.address, sendAmount)
+      await expect(pair.swap(0, receiveAmount, wallet.address, '0x', overrides)).to.be.revertedWith(
+        'IF: TRADE_NOT_ALLOWED'
+      )
+    }
+
+    for (const i of [TradeState.SELL_ALL, TradeState.SELL_TOKEN_1]) {
+      await pair.updateTradeState(i)
+      await token0.transfer(pair.address, sendAmount)
+      await expect(pair.swap(0, receiveAmount, wallet.address, '0x', overrides)).to.emit(pair, 'Sync') // Successful swap
+    }
+
+    await token1.transfer(pair.address, sendAmount)
+    for (const i of [TradeState.SELL_TOKEN_1, TradeState.SELL_NONE]) {
+      await pair.updateTradeState(i)
+      await expect(pair.swap(receiveAmount, 0, wallet.address, '0x', overrides)).to.be.revertedWith(
+        'IF: TRADE_NOT_ALLOWED'
+      )
+    }
+
+    for (const i of [TradeState.SELL_ALL, TradeState.SELL_TOKEN_0]) {
+      await pair.updateTradeState(i)
+      await token1.transfer(pair.address, sendAmount)
+      await expect(pair.swap(receiveAmount, 0, wallet.address, '0x', overrides)).to.emit(pair, 'Sync') // Successful swap
+    }
   })
 })

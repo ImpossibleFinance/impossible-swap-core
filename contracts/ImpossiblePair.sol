@@ -42,7 +42,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     /**
      @dev tradeState Tracks what directional trades are allowed for this pair.
     */
-    TradeState private tradeState;
+    TradeState public tradeState;
 
     bool private isXybk;
 
@@ -430,6 +430,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
      @notice Mints LP tokens based on sent underlying tokens. Underlying tokens must already be sent to contract
      @dev Function should be called from IF router unless you know what you're doing
      @dev Openzeppelin reentrancy guards are used
+     @dev First mint must have both token0 and token1. 
      @param to The address to mint LP tokens to
      @return liquidity The amount of LP tokens minted
     */
@@ -441,7 +442,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         uint256 amount1 = balance1.sub(_reserve1);
 
         bool feeOn = _mintFee(_reserve0, _reserve1);
-        uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
+        uint256 _totalSupply = totalSupply; // gas savings
         if (_totalSupply == 0) {
             liquidity = Math.sqrt(amount0.mul(amount1)).sub(MINIMUM_LIQUIDITY);
             _mint(address(0), MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens

@@ -360,7 +360,7 @@ describe('ImpossibleRouter01Tests', () => {
           await underlyingToken0.approve(router.address, MaxUint256)
           await pair.makeXybk(10, 10) // boost0=10, boost1=10
           let t: number
-          t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
+          t = (await provider.getBlock('latest')).timestamp // Mine blocks till boost kicks in for boost=10
           for (var i = 0; i < ONE_DAY; i++) {
             await mineBlock(provider, ++t)
           }
