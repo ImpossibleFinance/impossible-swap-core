@@ -10,14 +10,17 @@ import { v2Fixture } from './shared/fixtures'
 import ImpossiblePair from '../build/ImpossiblePair.json'
 import ImpossibleWrappedToken from '../build/ImpossibleWrappedToken.json'
 
-const ONE_DAY = 50
-let flag = 0
+const TEST_DELAY = 50
 
 chai.use(solidity)
 
 const overrides = {
   gasLimit: 9999999,
 }
+
+// TODO: write tests for tradestate
+// TODO: add the values to all output
+// TOOD: fix gas
 
 enum TestVersion {
   basic = 'basic',
@@ -26,6 +29,7 @@ enum TestVersion {
 
 describe('ImpossibleRouter01Tests', () => {
   for (const testVersion of Object.keys(TestVersion)) {
+    const testVersion = 'basic'
     const provider = new MockProvider({
       hardfork: 'istanbul',
       mnemonic: 'horn horn horn horn horn horn horn horn horn horn horn horn',
@@ -145,7 +149,7 @@ describe('ImpossibleRouter01Tests', () => {
         expect(await router.WETH()).to.eq(WETH.address)
       })
 
-      it('addLiquidity', async () => {
+      it('addLiquidity, xyk + xybk with 1 side being 0', async () => {
         const token0Amount = expandTo18Decimals(1)
         const token1Amount = expandTo18Decimals(4)
 
@@ -153,21 +157,47 @@ describe('ImpossibleRouter01Tests', () => {
         await underlyingToken0.approve(router.address, MaxUint256)
         await underlyingToken1.approve(router.address, MaxUint256)
 
-        expect(
-          await router.addLiquidity(
-            token0.address,
-            token1.address,
+        await router.addLiquidity(
+          token0.address,
+          token1.address,
+          token0Amount,
+          token1Amount,
+          0,
+          0,
+          wallet.address,
+          MaxUint256,
+          overrides
+        )
+
+        await pair.makeXybk(10, 10)
+        let t: number
+        t = (await provider.getBlock('latest')).timestamp // Mine blocks till boost kicks in for boost=10
+        for (var i = 0; i < TEST_DELAY + 10; i++) {
+          await mineBlock(provider, ++t)
+        }
+
+        await expect(
+          router.swapTokensForExactTokens(
             token0Amount,
-            token1Amount,
-            0,
-            0,
+            MaxUint256,
+            [token1.address, token0.address],
             wallet.address,
             MaxUint256,
             overrides
           )
-        )
+        ).to.emit(pair, 'Sync')
 
-        expect(await pair.balanceOf(wallet.address)).to.eq(expectedLiquidity.sub(MINIMUM_LIQUIDITY))
+        expect(await token0.balanceOf(pair.address)).to.eq(0)
+        const token1Bal = bigNumberify('5184649172409150534')
+        expect(await token1.balanceOf(pair.address)).to.eq(token1Bal)
+
+        await expect(
+          router.addLiquidity(token0.address, token1.address, 0, token1Bal, 0, 0, wallet.address, MaxUint256, overrides)
+        )
+          .to.emit(pair, 'Transfer')
+          .withArgs(AddressZero, wallet.address, expectedLiquidity)
+          .to.emit(pair, 'Mint')
+          .withArgs(router.address, 0, token1Bal)
       })
 
       it('addLiquidityETH', async () => {
@@ -361,7 +391,7 @@ describe('ImpossibleRouter01Tests', () => {
           await pair.makeXybk(10, 10) // boost0=10, boost1=10
           let t: number
           t = (await provider.getBlock('latest')).timestamp // Mine blocks till boost kicks in for boost=10
-          for (var i = 0; i < ONE_DAY; i++) {
+          for (var i = 0; i < TEST_DELAY; i++) {
             await mineBlock(provider, ++t)
           }
         })
@@ -416,7 +446,7 @@ describe('ImpossibleRouter01Tests', () => {
           await pair.makeXybk(28, 11) // boost0=28, boost1=11
           let t: number
           t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
-          for (var i = 0; i < ONE_DAY; i++) {
+          for (var i = 0; i < TEST_DELAY; i++) {
             await mineBlock(provider, ++t)
           }
         })
@@ -471,7 +501,7 @@ describe('ImpossibleRouter01Tests', () => {
           await pair.makeXybk(28, 11) // boost0=28, boost1=11
           let t: number
           t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
-          for (var i = 0; i < ONE_DAY; i++) {
+          for (var i = 0; i < TEST_DELAY; i++) {
             await mineBlock(provider, ++t)
           }
         })
@@ -526,7 +556,7 @@ describe('ImpossibleRouter01Tests', () => {
           await pair.makeXybk(28, 11) // boost0=10, boost1=10
           let t: number
           t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
-          for (var i = 0; i < ONE_DAY; i++) {
+          for (var i = 0; i < TEST_DELAY; i++) {
             await mineBlock(provider, ++t)
           }
         })
@@ -629,7 +659,7 @@ describe('ImpossibleRouter01Tests', () => {
           await pair.makeXybk(10, 10) // boost0=10, boost1=10
           let t: number
           t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
-          for (var i = 0; i < ONE_DAY; i++) {
+          for (var i = 0; i < TEST_DELAY; i++) {
             await mineBlock(provider, ++t)
           }
         })
@@ -685,7 +715,7 @@ describe('ImpossibleRouter01Tests', () => {
           await pair.makeXybk(28, 11) // boost0=10, boost1=10
           let t: number
           t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
-          for (var i = 0; i < ONE_DAY; i++) {
+          for (var i = 0; i < TEST_DELAY; i++) {
             await mineBlock(provider, ++t)
           }
         })
@@ -741,7 +771,7 @@ describe('ImpossibleRouter01Tests', () => {
           await pair.makeXybk(28, 11) // boost0=28, boost1=11
           let t: number
           t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
-          for (var i = 0; i < ONE_DAY; i++) {
+          for (var i = 0; i < TEST_DELAY; i++) {
             await mineBlock(provider, ++t)
           }
         })
@@ -797,7 +827,7 @@ describe('ImpossibleRouter01Tests', () => {
           await pair.makeXybk(28, 11) // ratiostart=0, ratioend=100, boost0=28, boost1=11
           let t: number
           t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
-          for (var i = 0; i < ONE_DAY; i++) {
+          for (var i = 0; i < TEST_DELAY; i++) {
             await mineBlock(provider, ++t)
           }
         })
@@ -1041,6 +1071,10 @@ describe('ImpossibleRouter01Tests', () => {
             }[testVersion as TestVersion]
           )
         })
+      })
+
+      describe('test tradestate', () => {
+        //TODO
       })
     })
   }

@@ -49,7 +49,7 @@ describe('ImpossiblePair', () => {
   })
 
   // Minting/burning has no change in uni or xybk variant
-  it('mint, xyk and xybk', async () => {
+  it('mint, xyk + xybk with 1 side being 0', async () => {
     const token0Amount = expandTo18Decimals(1)
     const token1Amount = expandTo18Decimals(4)
     await token0.transfer(pair.address, token0Amount)
@@ -124,7 +124,7 @@ describe('ImpossiblePair', () => {
     expect(await token1.balanceOf(wallet.address)).to.eq(totalSupplyToken1.sub(1000))
   })
 
-  it('burn, xybk', async () => {
+  it('burn, xybk with 1 side being 0', async () => {
     const token0Amount = expandTo18Decimals(1)
     const token1Amount = expandTo18Decimals(4)
     await addLiquidity(token0Amount, token1Amount)

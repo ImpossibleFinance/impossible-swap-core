@@ -88,6 +88,10 @@ contract ImpossibleRouterExtension is IImpossibleRouterExtension {
         (uint256 reserveA, uint256 reserveB, ) = ImpossibleLibrary.getReserves(factory, tokenA, tokenB);
         if (reserveA == 0 && reserveB == 0) {
             (amountA, amountB) = (amountADesired, amountBDesired);
+        } else if (reserveA == 0) {
+            amountB = amountBDesired;
+        } else if (reserveB == 0) {
+            amountA = amountADesired;
         } else {
             uint256 amountBOptimal = ImpossibleLibrary.quote(amountADesired, reserveA, reserveB);
             if (amountBOptimal <= amountBDesired) {

@@ -26,12 +26,11 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     bytes4 private constant SELECTOR = bytes4(keccak256(bytes('transfer(address,uint256)')));
 
     /**
-     @dev It's impractical to call evm_mine 28800 times per test so we set to 50
-     @dev These time vars are based on BSC's 3 second block time
+     @dev Timestamps, not block numbers
     */
-    uint256 private constant THIRTY_MINS = 600;
-    uint32 private constant TWO_WEEKS = 403200;
-    uint32 private constant ONE_DAY_PROD = 28800;
+    uint256 private constant THIRTY_MINS = 108000;
+    uint32 private constant TWO_WEEKS = 1209600;
+    uint32 private constant ONE_DAY_PROD = 86400;
     uint32 private constant ONE_DAY_TESTING = 50;
 
     /**
@@ -42,7 +41,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     /**
      @dev tradeState Tracks what directional trades are allowed for this pair.
     */
-    TradeState public tradeState;
+    TradeState private tradeState;
 
     bool private isXybk;
 
@@ -75,8 +74,8 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     /**
      @dev BSC mines 10m blocks a year. uint32 will last 400 years before overflowing
     */
-    uint256 public startBlockChange;
-    uint256 public endBlockChange;
+    uint256 public startTime;
+    uint256 public endTime;
 
     /**
      @dev withdrawalFeeRatio is the fee collected on burn. Init as 1/201=0.4795% fee (if feeOn)
@@ -171,31 +170,31 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         uint32 newBst,
         uint256 end
     ) internal view returns (uint256) {
-        uint256 start = startBlockChange;
+        uint256 start = startTime;
         if (newBst > oldBst) {
             /// old + diff * (curr-start) / (end-start)
             return
                 uint256(oldBst).add(
-                    (uint256(newBst).sub(uint256(oldBst))).mul(block.number.sub(start)).div(end.sub(start))
+                    (uint256(newBst).sub(uint256(oldBst))).mul(block.timestamp.sub(start)).div(end.sub(start))
                 );
         } else {
             /// old - diff * (curr-start) / (end-start)
             return
                 uint256(oldBst).sub(
-                    (uint256(oldBst).sub(uint256(newBst))).mul(block.number.sub(start)).div(end.sub(start))
+                    (uint256(oldBst).sub(uint256(newBst))).mul(block.timestamp.sub(start)).div(end.sub(start))
                 );
         }
     }
 
     /**
      @notice Function to get/calculate actual boosts in the system
-     @dev If block.number > endBlock, just return new boosts
+     @dev If block.timestamp > endBlock, just return new boosts
      @return _boost0 The actual boost0 value
      @return _boost1 The actual boost1 value
     */
     function calcBoost() public view override returns (uint256 _boost0, uint256 _boost1) {
-        uint256 _endBlockChange = endBlockChange;
-        if (block.number >= _endBlockChange) {
+        uint256 _endTime = endTime;
+        if (block.timestamp >= _endTime) {
             (uint32 _newBoost0, uint32 _newBoost1, , , , ) = getBoost();
             _boost0 = uint256(_newBoost0);
             _boost1 = uint256(_newBoost1);
@@ -208,8 +207,8 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
                 uint32 _currBoost0,
                 uint32 _currBoost1
             ) = getBoost();
-            _boost0 = linInterpolate(_oldBoost0, _newBoost0, _endBlockChange);
-            _boost1 = linInterpolate(_oldBoost1, _newBoost1, _endBlockChange);
+            _boost0 = linInterpolate(_oldBoost0, _newBoost0, _endTime);
+            _boost1 = linInterpolate(_oldBoost1, _newBoost1, _endTime);
             if (xybkComputeK(_boost0, _boost1) < kLast) {
                 _boost0 = _currBoost0;
                 _boost1 = _currBoost1;
@@ -260,7 +259,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     */
     function makeUni() external onlyGovernance nonReentrant {
         require(isXybk, 'IF: IS_ALREADY_UNI');
-        require(block.number >= endBlockChange, 'IF: BOOST_ALREADY_CHANGING');
+        require(block.timestamp >= endTime, 'IF: BOOST_ALREADY_CHANGING');
         require(newBoost0 == 1 && newBoost1 == 1, 'IF: INVALID_BOOST');
         isXybk = false;
         oldBoost0 = 1; // Set boost to 1
@@ -285,7 +284,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
      @notice Setter function for time delay for boost changes
      @dev Can only be called by IF governance
      @dev Delay must be between 30 minutes and 2 weeks
-     @param _newDelay The new time delay in BSC blocks (3 second block time)
+     @param _newDelay The new time delay in seconds
     */
     function updateDelay(uint256 _newDelay) external onlyGovernance {
         require(_newDelay >= THIRTY_MINS && delay <= TWO_WEEKS, 'IF: INVALID_DELAY');
@@ -329,16 +328,16 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
             _newBoost0 >= 1 && _newBoost1 >= 1 && _newBoost0 <= 1000000 && _newBoost1 <= 1000000,
             'IF: INVALID_BOOST'
         );
-        require(block.number >= endBlockChange, 'IF: BOOST_ALREADY_CHANGING');
+        require(block.timestamp >= endTime, 'IF: BOOST_ALREADY_CHANGING');
         (uint256 _reserve0, uint256 _reserve1) = getReserves();
         _mintFee(_reserve0, _reserve1);
         oldBoost0 = newBoost0;
         oldBoost1 = newBoost1;
         newBoost0 = _newBoost0;
         newBoost1 = _newBoost1;
-        startBlockChange = block.number;
-        endBlockChange = block.number + delay;
-        emit updatedBoost(oldBoost0, oldBoost1, newBoost0, newBoost1, startBlockChange, endBlockChange);
+        startTime = block.timestamp;
+        endTime = block.timestamp + delay;
+        emit updatedBoost(oldBoost0, oldBoost1, newBoost0, newBoost1, startTime, endTime);
     }
 
     /**

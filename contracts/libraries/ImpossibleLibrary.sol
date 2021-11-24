@@ -43,7 +43,7 @@ library ImpossibleLibrary {
                         hex'ff',
                         factory,
                         keccak256(abi.encodePacked(token0, token1)),
-                        hex'306b1267155d3bcad8781442fdbce549607d84e5661c1c7a16e9ff20d7b3e54d' // init code hash
+                        hex'c6b082b4a8bdfe799b200646ba21106674c4be6b914aa4a26f81c8001f67a6f9' // init code hash
                     )
                 )
             )
@@ -177,7 +177,7 @@ library ImpossibleLibrary {
         if (isXybk) {
             (uint256 boost0, uint256 boost1) = IImpossiblePair(pair).calcBoost();
             uint256 sqrtK = Math.sqrt(
-                xybkComputeK(isMatch ? reserveIn : reserveOut, isMatch ? reserveOut : reserveIn, boost0, boost1)
+                xybkComputeK(boost0, boost1, isMatch ? reserveIn : reserveOut, isMatch ? reserveOut : reserveIn)
             );
             /// since balance0=balance1 only at sqrtK, if final balanceIn >= sqrtK means balanceIn >= balanceOut
             /// Use post-fee balances to maintain consistency with pair contract K invariant check
@@ -254,7 +254,7 @@ library ImpossibleLibrary {
             }
             if (isXybk) {
                 uint256 sqrtK = Math.sqrt(
-                    xybkComputeK(isMatch ? reserveIn : reserveOut, isMatch ? reserveOut : reserveIn, boost0, boost1)
+                    xybkComputeK(boost0, boost1, isMatch ? reserveIn : reserveOut, isMatch ? reserveOut : reserveIn)
                 );
                 /// since balance0=balance1 only at sqrtK, if final balanceOut >= sqrtK means balanceOut >= balanceIn
                 if (reserveOut.sub(amountOut) >= sqrtK) {
@@ -329,7 +329,7 @@ library ImpossibleLibrary {
         if (isXybk) {
             (uint256 boost0, uint256 boost1) = IImpossiblePair(pair).calcBoost();
             uint256 sqrtK = Math.sqrt(
-                xybkComputeK(isMatch ? reserveIn : reserveOut, isMatch ? reserveOut : reserveIn, boost0, boost1)
+                xybkComputeK(boost0, boost1, isMatch ? reserveIn : reserveOut, isMatch ? reserveOut : reserveIn)
             );
             /// since balance0=balance1 only at sqrtK, if final balanceIn >= sqrtK means balanceIn >= balanceOut
             /// Use post-fee balances to maintain consistency with pair contract K invariant check
