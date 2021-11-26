@@ -22,12 +22,12 @@ interface IImpossiblePair is IImpossibleERC20 {
         address indexed to
     );
     event Sync(uint256 reserve0, uint256 reserve1);
-    event changeInvariant(bool _isXybk, uint256 _newBoost0, uint256 _newBoost1);
-    event updatedTradeFees(uint256 _oldFee, uint256 _newFee);
-    event updatedDelay(uint256 _oldDelay, uint256 _newDelay);
-    event updatedTradeState(TradeState _tradeState);
-    event updatedWithdrawalFeeRatio(uint256 _oldWithdrawalFee, uint256 _newWithdrawalFee);
-    event updatedBoost(
+    event ChangeInvariant(bool _isXybk, uint256 _newBoost0, uint256 _newBoost1);
+    event UpdatedTradeFees(uint256 _oldFee, uint256 _newFee);
+    event UpdatedDelay(uint256 _oldDelay, uint256 _newDelay);
+    event UpdatedTradeState(TradeState _tradeState);
+    event UpdatedWithdrawalFeeRatio(uint256 _oldWithdrawalFee, uint256 _newWithdrawalFee);
+    event UpdatedBoost(
         uint32 _oldBoost0,
         uint32 _oldBoost1,
         uint32 _newBoost0,

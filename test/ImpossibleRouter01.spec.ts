@@ -10,17 +10,13 @@ import { v2Fixture } from './shared/fixtures'
 import ImpossiblePair from '../build/ImpossiblePair.json'
 import ImpossibleWrappedToken from '../build/ImpossibleWrappedToken.json'
 
-const TEST_DELAY = 50
+const ONE_DAY = 86400
 
 chai.use(solidity)
 
 const overrides = {
   gasLimit: 9999999,
 }
-
-// TODO: write tests for tradestate
-// TODO: add the values to all output
-// TOOD: fix gas
 
 enum TestVersion {
   basic = 'basic',
@@ -29,7 +25,6 @@ enum TestVersion {
 
 describe('ImpossibleRouter01Tests', () => {
   for (const testVersion of Object.keys(TestVersion)) {
-    const testVersion = 'basic'
     const provider = new MockProvider({
       hardfork: 'istanbul',
       mnemonic: 'horn horn horn horn horn horn horn horn horn horn horn horn',
@@ -61,6 +56,8 @@ describe('ImpossibleRouter01Tests', () => {
 
     let pair: Contract
     let WETHPair: Contract
+
+    let t: BigNumber
 
     beforeEach(async function () {
       const fixture = await loadFixture(v2Fixture)
@@ -149,6 +146,94 @@ describe('ImpossibleRouter01Tests', () => {
         expect(await router.WETH()).to.eq(WETH.address)
       })
 
+      it('tradestate', async () => {
+        const token0Amount = expandTo18Decimals(100)
+        const token1Amount = expandTo18Decimals(100)
+
+        await underlyingToken0.approve(router.address, MaxUint256)
+        await underlyingToken1.approve(router.address, MaxUint256)
+
+        await router.addLiquidity(
+          token0.address,
+          token1.address,
+          token0Amount,
+          token1Amount,
+          0,
+          0,
+          wallet.address,
+          MaxUint256,
+          overrides
+        )
+
+        const swapAmount = expandTo18Decimals(1)
+
+        await pair.makeXybk(10, 10)
+        await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(ONE_DAY))
+
+        enum TradeState {
+          SELL_ALL = 0,
+          SELL_TOKEN_0 = 1,
+          SELL_TOKEN_1 = 2,
+          SELL_NONE = 3,
+        }
+
+        for (const i of [TradeState.SELL_TOKEN_0, TradeState.SELL_NONE]) {
+          await pair.updateTradeState(i)
+          await expect(
+            router.swapExactTokensForTokens(
+              swapAmount,
+              0,
+              [token0.address, token1.address],
+              wallet.address,
+              MaxUint256,
+              overrides
+            )
+          ).to.be.revertedWith('ImpossibleLibrary: TRADE_NOT_ALLOWED')
+        }
+
+        for (const i of [TradeState.SELL_ALL, TradeState.SELL_TOKEN_1]) {
+          await pair.updateTradeState(i)
+          await expect(
+            router.swapExactTokensForTokens(
+              swapAmount,
+              0,
+              [token0.address, token1.address],
+              wallet.address,
+              MaxUint256,
+              overrides
+            )
+          ).to.emit(pair, 'Sync')
+        }
+
+        for (const i of [TradeState.SELL_TOKEN_1, TradeState.SELL_NONE]) {
+          await pair.updateTradeState(i)
+          await expect(
+            router.swapExactTokensForTokens(
+              swapAmount,
+              0,
+              [token1.address, token0.address],
+              wallet.address,
+              MaxUint256,
+              overrides
+            )
+          ).to.be.revertedWith('ImpossibleLibrary: TRADE_NOT_ALLOWED')
+        }
+
+        for (const i of [TradeState.SELL_ALL, TradeState.SELL_TOKEN_0]) {
+          await pair.updateTradeState(i)
+          await expect(
+            router.swapExactTokensForTokens(
+              swapAmount,
+              0,
+              [token1.address, token0.address],
+              wallet.address,
+              MaxUint256,
+              overrides
+            )
+          ).to.emit(pair, 'Sync')
+        }
+      })
+
       it('addLiquidity, xyk + xybk with 1 side being 0', async () => {
         const token0Amount = expandTo18Decimals(1)
         const token1Amount = expandTo18Decimals(4)
@@ -170,11 +255,7 @@ describe('ImpossibleRouter01Tests', () => {
         )
 
         await pair.makeXybk(10, 10)
-        let t: number
-        t = (await provider.getBlock('latest')).timestamp // Mine blocks till boost kicks in for boost=10
-        for (var i = 0; i < TEST_DELAY + 10; i++) {
-          await mineBlock(provider, ++t)
-        }
+        await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(ONE_DAY))
 
         await expect(
           router.swapTokensForExactTokens(
@@ -356,11 +437,11 @@ describe('ImpossibleRouter01Tests', () => {
 
         it('gas', async () => {
           // ensure that setting price{0,1}CumulativeLast for the first time doesn't affect our gas math
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           await pair.sync(overrides)
 
           await underlyingToken0.approve(router.address, MaxUint256)
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           const tx = await router.swapExactTokensForTokens(
             swapAmount,
             0,
@@ -389,11 +470,7 @@ describe('ImpossibleRouter01Tests', () => {
           await addLiquidity(token0Amount, token1Amount)
           await underlyingToken0.approve(router.address, MaxUint256)
           await pair.makeXybk(10, 10) // boost0=10, boost1=10
-          let t: number
-          t = (await provider.getBlock('latest')).timestamp // Mine blocks till boost kicks in for boost=10
-          for (var i = 0; i < TEST_DELAY; i++) {
-            await mineBlock(provider, ++t)
-          }
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(ONE_DAY))
         })
 
         it('happy path', async () => {
@@ -411,11 +488,11 @@ describe('ImpossibleRouter01Tests', () => {
 
         it('gas', async () => {
           // ensure that setting price{0,1}CumulativeLast for the first time doesn't affect our gas math
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           await pair.sync(overrides)
 
           await underlyingToken0.approve(router.address, MaxUint256)
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           const tx = await router.swapExactTokensForTokens(
             swapAmount,
             0,
@@ -427,8 +504,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 153490, // Uni was 101876
-              [TestVersion.wrapper]: 203942,
+              [TestVersion.basic]: 168219, // Uni was 101876
+              [TestVersion.wrapper]: 218671,
             }[testVersion as TestVersion]
           )
         })
@@ -444,11 +521,7 @@ describe('ImpossibleRouter01Tests', () => {
           await addLiquidity(token0Amount, token1Amount)
           await underlyingToken0.approve(router.address, MaxUint256)
           await pair.makeXybk(28, 11) // boost0=28, boost1=11
-          let t: number
-          t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
-          for (var i = 0; i < TEST_DELAY; i++) {
-            await mineBlock(provider, ++t)
-          }
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(ONE_DAY))
         })
 
         it('happy path', async () => {
@@ -466,11 +539,11 @@ describe('ImpossibleRouter01Tests', () => {
 
         it('gas', async () => {
           // ensure that setting price{0,1}CumulativeLast for the first time doesn't affect our gas math
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           await pair.sync(overrides)
 
           await underlyingToken0.approve(router.address, MaxUint256)
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           const tx = await router.swapExactTokensForTokens(
             swapAmount,
             0,
@@ -482,8 +555,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 153697, // Uni was 101876
-              [TestVersion.wrapper]: 204149,
+              [TestVersion.basic]: 168599, // Uni was 101876
+              [TestVersion.wrapper]: 219051,
             }[testVersion as TestVersion]
           )
         })
@@ -499,11 +572,7 @@ describe('ImpossibleRouter01Tests', () => {
           await addLiquidity(token0Amount, token1Amount)
           await underlyingToken0.approve(router.address, MaxUint256)
           await pair.makeXybk(28, 11) // boost0=28, boost1=11
-          let t: number
-          t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
-          for (var i = 0; i < TEST_DELAY; i++) {
-            await mineBlock(provider, ++t)
-          }
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(ONE_DAY))
         })
 
         it('happy path', async () => {
@@ -521,11 +590,11 @@ describe('ImpossibleRouter01Tests', () => {
 
         it('gas', async () => {
           // ensure that setting price{0,1}CumulativeLast for the first time doesn't affect our gas math
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           await pair.sync(overrides)
 
           await underlyingToken0.approve(router.address, MaxUint256)
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           const tx = await router.swapExactTokensForTokens(
             swapAmount,
             0,
@@ -537,8 +606,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 153709, // Uni was 101876
-              [TestVersion.wrapper]: 204161,
+              [TestVersion.basic]: 168720, // Uni was 101876
+              [TestVersion.wrapper]: 219172,
             }[testVersion as TestVersion]
           )
         })
@@ -554,11 +623,7 @@ describe('ImpossibleRouter01Tests', () => {
           await addLiquidity(token0Amount, token1Amount)
           await underlyingToken0.approve(router.address, MaxUint256)
           await pair.makeXybk(28, 11) // boost0=10, boost1=10
-          let t: number
-          t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
-          for (var i = 0; i < TEST_DELAY; i++) {
-            await mineBlock(provider, ++t)
-          }
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(ONE_DAY))
         })
 
         it('happy path', async () => {
@@ -576,11 +641,11 @@ describe('ImpossibleRouter01Tests', () => {
 
         it('gas', async () => {
           // ensure that setting price{0,1}CumulativeLast for the first time doesn't affect our gas math
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           await pair.sync(overrides)
 
           await underlyingToken0.approve(router.address, MaxUint256)
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           const tx = await router.swapExactTokensForTokens(
             swapAmount,
             0,
@@ -592,8 +657,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 154472, // Uni was 101876
-              [TestVersion.wrapper]: 204924,
+              [TestVersion.basic]: 170137, // Uni was 101876
+              [TestVersion.wrapper]: 220589,
             }[testVersion as TestVersion]
           )
         })
@@ -625,11 +690,11 @@ describe('ImpossibleRouter01Tests', () => {
 
         it('gas', async () => {
           // ensure that setting price{0,1}CumulativeLast for the first time doesn't affect our gas math
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           await pair.sync(overrides)
 
           await underlyingToken0.approve(router.address, MaxUint256)
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           const tx = await router.swapTokensForExactTokens(
             outputAmount,
             MaxUint256,
@@ -657,11 +722,7 @@ describe('ImpossibleRouter01Tests', () => {
         beforeEach(async () => {
           await addLiquidity(token0Amount, token1Amount)
           await pair.makeXybk(10, 10) // boost0=10, boost1=10
-          let t: number
-          t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
-          for (var i = 0; i < TEST_DELAY; i++) {
-            await mineBlock(provider, ++t)
-          }
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(ONE_DAY))
         })
 
         it('happy path', async () => {
@@ -680,11 +741,11 @@ describe('ImpossibleRouter01Tests', () => {
 
         it('gas', async () => {
           // ensure that setting price{0,1}CumulativeLast for the first time doesn't affect our gas math
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           await pair.sync(overrides)
 
           await underlyingToken0.approve(router.address, MaxUint256)
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           const tx = await router.swapTokensForExactTokens(
             outputAmount,
             MaxUint256,
@@ -696,8 +757,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 153586, // Uni was 101876
-              [TestVersion.wrapper]: 204037,
+              [TestVersion.basic]: 168351, // Uni was 101876
+              [TestVersion.wrapper]: 218802,
             }[testVersion as TestVersion]
           )
         })
@@ -713,11 +774,7 @@ describe('ImpossibleRouter01Tests', () => {
           await addLiquidity(token0Amount, token1Amount)
           await underlyingToken0.approve(router.address, MaxUint256)
           await pair.makeXybk(28, 11) // boost0=10, boost1=10
-          let t: number
-          t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
-          for (var i = 0; i < TEST_DELAY; i++) {
-            await mineBlock(provider, ++t)
-          }
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(ONE_DAY))
         })
 
         it('happy path', async () => {
@@ -736,11 +793,11 @@ describe('ImpossibleRouter01Tests', () => {
 
         it('gas', async () => {
           // ensure that setting price{0,1}CumulativeLast for the first time doesn't affect our gas math
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           await pair.sync(overrides)
 
           await underlyingToken0.approve(router.address, MaxUint256)
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           const tx = await router.swapTokensForExactTokens(
             outputAmount,
             MaxUint256,
@@ -752,8 +809,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 153793, // Uni was 101876
-              [TestVersion.wrapper]: 204244,
+              [TestVersion.basic]: 168731, // Uni was 101876
+              [TestVersion.wrapper]: 219182,
             }[testVersion as TestVersion]
           )
         })
@@ -769,11 +826,7 @@ describe('ImpossibleRouter01Tests', () => {
           await addLiquidity(token0Amount, token1Amount)
           await underlyingToken0.approve(router.address, MaxUint256)
           await pair.makeXybk(28, 11) // boost0=28, boost1=11
-          let t: number
-          t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
-          for (var i = 0; i < TEST_DELAY; i++) {
-            await mineBlock(provider, ++t)
-          }
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(ONE_DAY))
         })
 
         it('happy path', async () => {
@@ -792,11 +845,11 @@ describe('ImpossibleRouter01Tests', () => {
 
         it('gas', async () => {
           // ensure that setting price{0,1}CumulativeLast for the first time doesn't affect our gas math
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           await pair.sync(overrides)
 
           await underlyingToken0.approve(router.address, MaxUint256)
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           const tx = await router.swapTokensForExactTokens(
             outputAmount,
             MaxUint256,
@@ -808,8 +861,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 153805, // Uni was 101876
-              [TestVersion.wrapper]: 204256,
+              [TestVersion.basic]: 168852, // Uni was 101876
+              [TestVersion.wrapper]: 219303,
             }[testVersion as TestVersion]
           )
         })
@@ -825,11 +878,7 @@ describe('ImpossibleRouter01Tests', () => {
           await addLiquidity(token0Amount, token1Amount)
           await underlyingToken0.approve(router.address, MaxUint256)
           await pair.makeXybk(28, 11) // ratiostart=0, ratioend=100, boost0=28, boost1=11
-          let t: number
-          t = (await provider.getBlock('latest')).timestamp // Mine blocks so staggering boost kicks in to test boost=10
-          for (var i = 0; i < TEST_DELAY; i++) {
-            await mineBlock(provider, ++t)
-          }
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(ONE_DAY))
         })
 
         it('happy path', async () => {
@@ -848,11 +897,11 @@ describe('ImpossibleRouter01Tests', () => {
 
         it('gas', async () => {
           // ensure that setting price{0,1}CumulativeLast for the first time doesn't affect our gas math
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           await pair.sync(overrides)
 
           await underlyingToken0.approve(router.address, MaxUint256)
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           const tx = await router.swapTokensForExactTokens(
             outputAmount,
             MaxUint256,
@@ -864,8 +913,8 @@ describe('ImpossibleRouter01Tests', () => {
           const receipt = await tx.wait()
           expect(receipt.gasUsed).to.eq(
             {
-              [TestVersion.basic]: 154568, // Uni was 101876
-              [TestVersion.wrapper]: 205019,
+              [TestVersion.basic]: 170269, // Uni was 101876
+              [TestVersion.wrapper]: 220720,
             }[testVersion as TestVersion]
           )
         })
@@ -893,11 +942,11 @@ describe('ImpossibleRouter01Tests', () => {
 
         it('gas', async () => {
           // ensure that setting price{0,1}CumulativeLast for the first time doesn't affect our gas math
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           await pair.sync(overrides)
 
           const swapAmount = expandTo18Decimals(1)
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           const tx = await router.swapExactETHForTokens(
             0,
             [WETH.address, WETHPartner.address],
@@ -946,11 +995,11 @@ describe('ImpossibleRouter01Tests', () => {
         it('gas', async () => {
           // ensure that setting price{0,1}CumulativeLast for the first time doesn't affect our gas math
           await underlyingWETHPartner.approve(router.address, MaxUint256)
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           await pair.sync(overrides)
 
           await underlyingToken0.approve(router.address, MaxUint256)
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           const tx = await router.swapTokensForExactETH(
             outputAmount,
             MaxUint256,
@@ -997,11 +1046,11 @@ describe('ImpossibleRouter01Tests', () => {
         it('gas', async () => {
           // ensure that setting price{0,1}CumulativeLast for the first time doesn't affect our gas math
           await underlyingWETHPartner.approve(router.address, MaxUint256)
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           await pair.sync(overrides)
 
           await underlyingToken0.approve(router.address, MaxUint256)
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           const tx = await router.swapExactTokensForETH(
             swapAmount,
             0,
@@ -1048,11 +1097,11 @@ describe('ImpossibleRouter01Tests', () => {
 
         it('gas', async () => {
           // ensure that setting price{0,1}CumulativeLast for the first time doesn't affect our gas math
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           await pair.sync(overrides)
 
           await underlyingToken0.approve(router.address, MaxUint256)
-          await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+          await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
           const tx = await router.swapETHForExactTokens(
             outputAmount,
             [WETH.address, WETHPartner.address],
@@ -1071,10 +1120,6 @@ describe('ImpossibleRouter01Tests', () => {
             }[testVersion as TestVersion]
           )
         })
-      })
-
-      describe('test tradestate', () => {
-        //TODO
       })
     })
   }

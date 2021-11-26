@@ -19,6 +19,7 @@ import './interfaces/IImpossibleCallee.sol';
             and ability to set asymmetrical tuning.
     @dev    See documentation at: https://docs.impossible.finance/impossible-swap/overview
 */
+
 contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     using SafeMath for uint256;
 
@@ -30,8 +31,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     */
     uint256 private constant THIRTY_MINS = 108000;
     uint32 private constant TWO_WEEKS = 1209600;
-    uint32 private constant ONE_DAY_PROD = 86400;
-    uint32 private constant ONE_DAY_TESTING = 50;
+    uint32 private constant ONE_DAY = 86400;
 
     /**
      @dev tradeFee is fee collected per swap in basis points. Init at 30bp.
@@ -86,7 +86,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
      @dev Delay sets the duration for boost changes over time. Init as 1 day
      @dev In test environment, set to 50 blocks.
     */
-    uint256 public override delay = ONE_DAY_TESTING;
+    uint256 public override delay = ONE_DAY;
 
     modifier onlyIFRouter() {
         require(msg.sender == router || msg.sender == routerExtension, 'IF: FORBIDDEN');
@@ -249,7 +249,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         require(!isXybk, 'IF: IS_ALREADY_XYBK');
         _updateBoost(_newBoost0, _newBoost1);
         isXybk = true;
-        emit changeInvariant(isXybk, _newBoost0, _newBoost1);
+        emit ChangeInvariant(isXybk, _newBoost0, _newBoost1);
     }
 
     /**
@@ -264,7 +264,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         isXybk = false;
         oldBoost0 = 1; // Set boost to 1
         oldBoost1 = 1; // xybk with boost=1 is just xy=k formula
-        emit changeInvariant(isXybk, newBoost0, newBoost1);
+        emit ChangeInvariant(isXybk, newBoost0, newBoost1);
     }
 
     /**
@@ -277,7 +277,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     function updateTradeFees(uint8 _newFee) external onlyGovernance {
         uint16 _oldFee = tradeFee;
         tradeFee = uint16(_newFee);
-        emit updatedTradeFees(_oldFee, _newFee);
+        emit UpdatedTradeFees(_oldFee, _newFee);
     }
 
     /**
@@ -290,7 +290,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         require(_newDelay >= THIRTY_MINS && delay <= TWO_WEEKS, 'IF: INVALID_DELAY');
         uint256 _oldDelay = delay;
         delay = _newDelay;
-        emit updatedDelay(_oldDelay, _newDelay);
+        emit UpdatedDelay(_oldDelay, _newDelay);
     }
 
     /**
@@ -301,7 +301,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
     function updateTradeState(TradeState _tradeState) external onlyGovernance nonReentrant {
         require(isXybk, 'IF: IS_CURRENTLY_UNI');
         tradeState = _tradeState;
-        emit updatedTradeState(_tradeState);
+        emit UpdatedTradeState(_tradeState);
     }
 
     /**
@@ -328,16 +328,17 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
             _newBoost0 >= 1 && _newBoost1 >= 1 && _newBoost0 <= 1000000 && _newBoost1 <= 1000000,
             'IF: INVALID_BOOST'
         );
-        require(block.timestamp >= endTime, 'IF: BOOST_ALREADY_CHANGING');
+        uint256 _blockTimestamp = block.timestamp;
+        require(_blockTimestamp >= endTime, 'IF: BOOST_ALREADY_CHANGING');
         (uint256 _reserve0, uint256 _reserve1) = getReserves();
         _mintFee(_reserve0, _reserve1);
         oldBoost0 = newBoost0;
         oldBoost1 = newBoost1;
         newBoost0 = _newBoost0;
         newBoost1 = _newBoost1;
-        startTime = block.timestamp;
-        endTime = block.timestamp + delay;
-        emit updatedBoost(oldBoost0, oldBoost1, newBoost0, newBoost1, startTime, endTime);
+        startTime = _blockTimestamp;
+        endTime = _blockTimestamp + delay;
+        emit UpdatedBoost(oldBoost0, oldBoost1, newBoost0, newBoost1, startTime, endTime);
     }
 
     /**
@@ -350,7 +351,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
         require(_newFeeRatio >= 100, 'IF: INVALID_FEE'); // capped at 1%
         uint256 _oldFeeRatio = withdrawalFeeRatio;
         withdrawalFeeRatio = _newFeeRatio;
-        emit updatedWithdrawalFeeRatio(_oldFeeRatio, _newFeeRatio);
+        emit UpdatedWithdrawalFeeRatio(_oldFeeRatio, _newFeeRatio);
     }
 
     /**
@@ -484,8 +485,8 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
             require(amount0 > 0 || amount1 > 0, 'IF: INSUFFICIENT_LIQUIDITY_BURNED');
 
             address _feeTo = IImpossibleSwapFactory(factory).feeTo();
-            // Burning fees are paid if burner is not IF fee collector
-            if (msg.sender != _feeTo) {
+            // Burning fees are paid if burn tx doesnt originate from not IF fee collector
+            if (tx.origin != _feeTo) {
                 if (feeOn) {
                     uint256 _feeRatio = withdrawalFeeRatio; // default is 1/201 ~= 0.4975%
                     amount0 -= amount0.div(_feeRatio);

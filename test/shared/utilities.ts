@@ -82,10 +82,10 @@ export async function getApprovalDigest(
   )
 }
 
-export async function mineBlock(provider: Web3Provider, timestamp: number): Promise<void> {
+export async function mineBlock(provider: Web3Provider, timestamp: BigNumber): Promise<void> {
   await new Promise(async (resolve, reject) => {
     ;(provider._web3Provider.sendAsync as any)(
-      { jsonrpc: '2.0', method: 'evm_mine', params: [timestamp] },
+      { jsonrpc: '2.0', method: 'evm_mine', params: [timestamp.toString()] },
       (error: any, result: any): void => {
         if (error) {
           reject(error)

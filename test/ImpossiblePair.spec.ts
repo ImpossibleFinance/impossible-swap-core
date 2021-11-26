@@ -1,7 +1,3 @@
-//TODO: Before test, comment out line 105 in onlyGovernance modifier. This allows pools to be made stable for our tests.
-//TODO: Also, change delay of TEST_DELAY to 50 instead of TEST_DELAY = 24 * 60 * 60 / 3
-//TODO: These todos are left uncommented on purpose - once these actions are done, comment them and test will run without errors
-
 import chai, { expect } from 'chai'
 import { Contract } from 'ethers'
 import { solidity, MockProvider, createFixtureLoader } from 'ethereum-waffle'
@@ -12,7 +8,7 @@ import { pairFixture } from './shared/fixtures'
 import { AddressZero } from 'ethers/constants'
 
 const MINIMUM_LIQUIDITY = bigNumberify(10).pow(3)
-const TEST_DELAY = 50
+const ONE_DAY = bigNumberify(86400)
 
 chai.use(solidity)
 
@@ -20,7 +16,7 @@ interface boostRes {
   _boost0: BigNumber
   _boost1: BigNumber
 }
-let t: number
+let t: BigNumber
 let boost: boostRes
 
 const overrides = {
@@ -76,11 +72,8 @@ describe('ImpossiblePair', () => {
     expect(await pair.kLast()).to.eq(0)
 
     await pair.makeXybk(10, 10) // boost0=10, boost1=10
-    let t: number
-    t = (await provider.getBlock('latest')).timestamp // Mine blocks till boost kicks in for boost=10
-    for (var i = 0; i < TEST_DELAY; i++) {
-      await mineBlock(provider, ++t)
-    }
+    t = bigNumberify((await provider.getBlock('latest')).timestamp) // Mine blocks till boost kicks in for boost=10
+    await mineBlock(provider, t.add(ONE_DAY))
 
     await token1.transfer(pair.address, token1Amount)
     await pair.swap(token0Amount, 0, wallet.address, '0x', overrides)
@@ -130,11 +123,8 @@ describe('ImpossiblePair', () => {
     await addLiquidity(token0Amount, token1Amount)
 
     await pair.makeXybk(10, 10) // boost0=10, boost1=10
-    let t: number
-    t = (await provider.getBlock('latest')).timestamp // Mine blocks till boost kicks in for boost=10
-    for (var i = 0; i < TEST_DELAY; i++) {
-      await mineBlock(provider, ++t)
-    }
+    t = bigNumberify((await provider.getBlock('latest')).timestamp) // Mine blocks till boost kicks in for boost=10
+    await mineBlock(provider, t.add(ONE_DAY))
 
     await token1.transfer(pair.address, token1Amount)
     await pair.swap(token0Amount, 0, wallet.address, '0x', overrides)
@@ -199,10 +189,8 @@ describe('ImpossiblePair', () => {
   ImpossibleswapTestCases.forEach((swapTestCase, i) => {
     it(`xybk slippage test:${i}`, async () => {
       await pair.makeXybk(10, 10) // boost0=10, boost1=10
-      t = (await provider.getBlock('latest')).timestamp
-      for (var i = 0; i < TEST_DELAY; i++) {
-        await mineBlock(provider, ++t)
-      }
+      t = bigNumberify((await provider.getBlock('latest')).timestamp)
+      await mineBlock(provider, t.add(ONE_DAY))
       const [swapAmount, token0Amount, token1Amount, expectedOutputAmount] = swapTestCase
       await addLiquidity(token0Amount, token1Amount)
       await token0.transfer(pair.address, swapAmount)
@@ -246,10 +234,9 @@ describe('ImpossiblePair', () => {
     const token1Amount = expandTo18Decimals(10)
     await addLiquidity(token0Amount, token1Amount)
     await pair.makeXybk(10, 10) // boost0=10, boost1=10
-    t = (await provider.getBlock('latest')).timestamp
-    for (var i = 0; i < TEST_DELAY; i++) {
-      await mineBlock(provider, ++t)
-    }
+    t = bigNumberify((await provider.getBlock('latest')).timestamp)
+    await mineBlock(provider, t.add(ONE_DAY))
+
     const swapAmount = expandTo18Decimals(1)
     await token0.transfer(pair.address, swapAmount)
     await expect(pair.swap(0, swapAmount, wallet.address, '0x', overrides))
@@ -277,19 +264,19 @@ describe('ImpossiblePair', () => {
     const token1Amount = expandTo18Decimals(100)
     await addLiquidity(token0Amount, token1Amount)
     await pair.makeXybk(10, 10)
-    t = (await provider.getBlock('latest')).timestamp
-    for (var i = 0; i < TEST_DELAY - 1; i++) {
-      await mineBlock(provider, ++t)
-    }
+    await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(ONE_DAY))
     await expect(pair.makeUni()).to.be.revertedWith('IF: INVALID_BOOST')
     await pair.updateBoost(1, 1)
-    t = (await provider.getBlock('latest')).timestamp
-    for (var i = 0; i < TEST_DELAY - 2; i++) {
-      await mineBlock(provider, ++t)
-    }
+    t = bigNumberify((await provider.getBlock('latest')).timestamp)
+    await mineBlock(
+      provider,
+      bigNumberify((await provider.getBlock('latest')).timestamp)
+        .add(ONE_DAY)
+        .sub(1)
+    )
     await expect(pair.makeUni()).to.be.revertedWith('IF: BOOST_ALREADY_CHANGING')
-    await mineBlock(provider, ++t)
-    await pair.makeUni()
+    await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
+    await expect(pair.makeUni()).to.emit(pair, 'ChangeInvariant') // makeUni passed
 
     const swapAmount = expandTo18Decimals(1)
     await token0.transfer(pair.address, swapAmount)
@@ -320,7 +307,7 @@ describe('ImpossiblePair', () => {
 
     const swapAmount = expandTo18Decimals(1)
     await token1.transfer(pair.address, swapAmount)
-    await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+    await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
     const tx = await pair.swap(swapAmount, 0, wallet.address, '0x', overrides)
     const receipt = await tx.wait()
     expect(receipt.gasUsed).to.eq(64406) // v2 uni was 73462
@@ -332,30 +319,29 @@ describe('ImpossiblePair', () => {
     const token1Amount = expandTo18Decimals(5)
     await addLiquidity(token0Amount, token1Amount)
     await pair.makeXybk(10, 10) // boost0=10, boost1=10
-    t = (await provider.getBlock('latest')).timestamp
-    for (var i = 0; i < TEST_DELAY; i++) {
-      await mineBlock(provider, ++t)
-    }
+    t = bigNumberify((await provider.getBlock('latest')).timestamp)
+    await mineBlock(provider, t.add(ONE_DAY))
+
     await pair.sync(overrides)
 
     const swapAmount = expandTo18Decimals(1)
     await token1.transfer(pair.address, swapAmount)
-    await mineBlock(provider, (await provider.getBlock('latest')).timestamp + 1)
+    await mineBlock(provider, bigNumberify((await provider.getBlock('latest')).timestamp).add(1))
     const tx = await pair.swap(swapAmount, 0, wallet.address, '0x', overrides) // Testing gas fee
     const receipt = await tx.wait()
     expect(receipt.gasUsed).to.eq(92472)
   })
 
   interface linInterpolateTestCase {
-    b1: number
-    b2: number
+    b1: BigNumber
+    b2: BigNumber
     tests: number[][]
   }
 
   const linInterpolate: linInterpolateTestCase[] = [
     {
-      b1: TEST_DELAY + 1,
-      b2: 2 * TEST_DELAY + 1, // Interpolate between 1 and 51 -> increases 1 per block, 1 and 101 -> increases 2 per block
+      b1: bigNumberify(50).add(1),
+      b2: bigNumberify(50).add(1).mul(2), // Interpolate between 1 and 51 -> increases 1 per block, 1 and 101 -> increases 2 per block
       tests: [
         [1, 2, 3],
         [2, 3, 5],
@@ -363,8 +349,8 @@ describe('ImpossiblePair', () => {
       ],
     },
     {
-      b1: 87,
-      b2: 119,
+      b1: bigNumberify(87),
+      b2: bigNumberify(119),
       tests: [
         [1, 2, 3],
         [2, 4, 5],
@@ -379,6 +365,7 @@ describe('ImpossiblePair', () => {
       ],
     },
   ]
+
   /* Python code for testcase 2:
   import numpy as np
   x = np.arange(1, 51, 1)
@@ -390,34 +377,33 @@ describe('ImpossiblePair', () => {
 
   linInterpolate.forEach((boostVals, i) => {
     it(`xybk lin interpolate test:${i}`, async () => {
-      let startBlock: number
-      let currBlock: number
-      startBlock = (await provider.getBlock('latest')).number
+      t = bigNumberify((await provider.getBlock('latest')).timestamp)
       await expect(pair.makeXybk(boostVals.b1, boostVals.b2))
-        .to.emit(pair, 'changeInvariant')
+        .to.emit(pair, 'ChangeInvariant')
         .withArgs(true, boostVals.b1, boostVals.b2)
-        .to.emit(pair, 'updatedBoost')
-        .withArgs(1, 1, boostVals.b1, boostVals.b2, startBlock + 1, startBlock + 51)
+        .to.emit(pair, 'UpdatedBoost')
+
+      const currTimestamp = bigNumberify((await provider.getBlock('latest')).timestamp)
+      expect(currTimestamp).to.eq(bigNumberify(await pair.startTime()))
+      expect(currTimestamp.add(ONE_DAY)).to.eq(bigNumberify(await pair.endTime()))
+
+      t = bigNumberify((await provider.getBlock('latest')).timestamp)
 
       for (var j = 0; j < boostVals.tests.length; j++) {
-        t = (await provider.getBlock('latest')).timestamp
-        currBlock = (await provider.getBlock('latest')).number
-        for (var k = currBlock; k < startBlock + 1 + boostVals.tests[j][0]; k++) {
-          await mineBlock(provider, ++t)
-        }
+        await mineBlock(provider, t.add(bigNumberify(boostVals.tests[j][0]).mul(ONE_DAY).div(50)))
         boost = await pair.calcBoost()
-        await expect(boost._boost0.toNumber()).to.equal(boostVals.tests[j][1])
-        await expect(boost._boost1.toNumber()).to.equal(boostVals.tests[j][2])
+        await expect(boost._boost0).to.equal(boostVals.tests[j][1])
+        await expect(boost._boost1).to.equal(boostVals.tests[j][2])
       }
 
       // For 1st case, test interpolate downwards
       if (boost._boost0.toNumber() == 51) {
-        startBlock = (await provider.getBlock('latest')).number
+        t = bigNumberify((await provider.getBlock('latest')).timestamp)
         await expect(pair.makeXybk(1, 1))
-          .to.emit(pair, 'changeInvariant')
+          .to.emit(pair, 'ChangeInvariant')
           .withArgs(true, boostVals.b1, boostVals.b1)
-          .to.emit(pair, 'updatedBoost')
-          .withArgs(boostVals.b1, boostVals.b2, 1, 1, startBlock + 1, startBlock + 51)
+          .to.emit(pair, 'UpdatedBoost')
+          .withArgs(boostVals.b1, boostVals.b2, 1, 1, t, t)
 
         const expectedBoost = [
           [1, 50, 100],
@@ -425,12 +411,9 @@ describe('ImpossiblePair', () => {
           [11, 39, 78],
         ]
 
+        t = bigNumberify((await provider.getBlock('latest')).timestamp)
         for (var j = 0; j < expectedBoost.length; j++) {
-          t = (await provider.getBlock('latest')).timestamp
-          currBlock = (await provider.getBlock('latest')).number
-          for (var k = currBlock; k < startBlock + 1 + expectedBoost[j][0]; k++) {
-            await mineBlock(provider, ++t)
-          }
+          await mineBlock(provider, t.add(expectedBoost[j][0]))
           boost = await pair.calcBoost()
           await expect(boost._boost0.toNumber()).to.equal(expectedBoost[j][1])
           await expect(boost._boost1.toNumber()).to.equal(expectedBoost[j][2])
