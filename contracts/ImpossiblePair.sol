@@ -486,18 +486,16 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
 
             address _feeTo = IImpossibleSwapFactory(factory).feeTo();
             // Burning fees are paid if burn tx doesnt originate from not IF fee collector
-            if (tx.origin != _feeTo) {
-                if (feeOn) {
-                    uint256 _feeRatio = withdrawalFeeRatio; // default is 1/201 ~= 0.4975%
-                    amount0 -= amount0.div(_feeRatio);
-                    amount1 -= amount1.div(_feeRatio);
-                    // Transfers withdrawalFee of LP tokens to IF feeTo
-                    uint256 transferAmount = liquidity.div(_feeRatio);
-                    _safeTransfer(address(this), IImpossibleSwapFactory(factory).feeTo(), transferAmount);
-                    _burn(address(this), liquidity.sub(transferAmount));
-                } else {
-                    _burn(address(this), liquidity);
-                }
+            if (feeOn && tx.origin != _feeTo) {
+                uint256 _feeRatio = withdrawalFeeRatio; // default is 1/201 ~= 0.4975%
+                amount0 -= amount0.div(_feeRatio);
+                amount1 -= amount1.div(_feeRatio);
+                // Transfers withdrawalFee of LP tokens to IF feeTo
+                uint256 transferAmount = liquidity.div(_feeRatio);
+                _safeTransfer(address(this), IImpossibleSwapFactory(factory).feeTo(), transferAmount);
+                _burn(address(this), liquidity.sub(transferAmount));
+            } else {
+                _burn(address(this), liquidity);
             }
 
             _safeTransfer(_token0, to, amount0);
