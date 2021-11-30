@@ -565,7 +565,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
                     'IF: TRADE_NOT_ALLOWED'
                 );
 
-                (uint256 boost0, uint256 boost1) = calcBoostWithUpdate();
+                (uint256 boost0, uint256 boost1) = calcBoost(); // dont update boost
                 uint256 scaledOldK = xybkComputeK(boost0, boost1).mul(10000**2);
                 require(
                     xybkCheckK(boost0, boost1, balance0Adjusted, balance1Adjusted, scaledOldK),

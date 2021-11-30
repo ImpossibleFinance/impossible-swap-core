@@ -43,7 +43,7 @@ library ImpossibleLibrary {
                         hex'ff',
                         factory,
                         keccak256(abi.encodePacked(token0, token1)),
-                        hex'2ede3df4450f7975ec65afbcfba3c41f0bd68a487cf220fa0a25211b7a7e8a05' // init code hash
+                        hex'44af417f4173c5e233fab14adb0d4835da35ecaf1f17b0458831e84a678be43d' // init code hash
                     )
                 )
             )
