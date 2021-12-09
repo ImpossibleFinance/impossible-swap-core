@@ -155,7 +155,6 @@ library ImpossibleLibrary {
             (address token0, ) = sortTokens(tokenIn, tokenOut);
             isMatch = tokenIn == token0;
             (reserveIn, reserveOut, pair) = getReserves(factory, tokenIn, tokenOut);
-            require(reserveIn > 0 && reserveOut > 0, 'ImpossibleLibrary: INSUFFICIENT_LIQUIDITY');
         }
         uint256 artiLiqTerm;
         bool isXybk;
@@ -241,7 +240,6 @@ library ImpossibleLibrary {
                 // Avoid stack too deep
                 address pair;
                 (reserveIn, reserveOut, pair) = getReserves(factory, tokenIn, tokenOut);
-                require(reserveIn > 0 && reserveOut > 0, 'ImpossibleLibrary: INSUFFICIENT_LIQUIDITY');
                 IImpossiblePair.TradeState tradeState;
                 (fee, tradeState, isXybk) = IImpossiblePair(pair).getPairSettings();
                 require(
@@ -304,7 +302,6 @@ library ImpossibleLibrary {
             (address token0, ) = sortTokens(tokenIn, tokenOut);
             isMatch = tokenIn == token0;
             (reserveIn, reserveOut, pair) = getReserves(factory, tokenIn, tokenOut); /// Should be reserve0/1 but reuse variables to save stack
-            require(reserveIn > 0 && reserveOut > 0, 'ImpossibleLibrary: INSUFFICIENT_LIQUIDITY');
         }
         uint256 amountOut;
         uint256 artiLiqTerm;
