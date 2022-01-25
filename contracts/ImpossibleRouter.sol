@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3
-pragma solidity =0.7.6;
+pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 import './libraries/TransferHelper.sol';
 import './libraries/ReentrancyGuard.sol';
 import './libraries/ImpossibleLibrary.sol';
 import './libraries/SafeMath.sol';
+import './libraries/ERC2771ContextUpdateable.sol';
 
 import './interfaces/IImpossibleSwapFactory.sol';
 import './interfaces/IImpossibleRouterExtension.sol';
@@ -24,7 +25,7 @@ import './interfaces/IImpossibleWrapperFactory.sol';
     @dev    Very little logical changes made in Router02. Most changes to accomodate xybk are in Library
 */
 
-contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
+contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard, ERC2771ContextUpdateable {
     using SafeMath for uint256;
 
     address public immutable override factory;
@@ -136,7 +137,7 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
     ) external virtual override ensure(deadline) nonReentrant returns (uint256[] memory amounts) {
         amounts = ImpossibleLibrary.getAmountsOut(factory, amountIn, path);
         require(amounts[amounts.length - 1] >= amountOutMin, 'ImpossibleRouter: INSUFFICIENT_OUTPUT_AMOUNT');
-        wrapSafeTransfer(path[0], msg.sender, ImpossibleLibrary.pairFor(factory, path[0], path[1]), amounts[0]);
+        wrapSafeTransfer(path[0], _msgSender(), ImpossibleLibrary.pairFor(factory, path[0], path[1]), amounts[0]);
         IImpossibleRouterExtension(routerExtension).swap(amounts, path);
         unwrapSafeTransfer(path[path.length - 1], to, amounts[amounts.length - 1]);
     }
@@ -160,7 +161,7 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
     ) external virtual override ensure(deadline) nonReentrant returns (uint256[] memory amounts) {
         amounts = ImpossibleLibrary.getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= amountInMax, 'ImpossibleRouter: EXCESSIVE_INPUT_AMOUNT');
-        wrapSafeTransfer(path[0], msg.sender, ImpossibleLibrary.pairFor(factory, path[0], path[1]), amounts[0]);
+        wrapSafeTransfer(path[0], _msgSender(), ImpossibleLibrary.pairFor(factory, path[0], path[1]), amounts[0]);
         IImpossibleRouterExtension(routerExtension).swap(amounts, path);
         unwrapSafeTransfer(path[path.length - 1], to, amountOut);
     }
@@ -209,7 +210,7 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
         require(path[path.length - 1] == WETH, 'ImpossibleRouter: INVALID_PATH');
         amounts = ImpossibleLibrary.getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= amountInMax, 'ImpossibleRouter: EXCESSIVE_INPUT_AMOUNT');
-        wrapSafeTransfer(path[0], msg.sender, ImpossibleLibrary.pairFor(factory, path[0], path[1]), amounts[0]);
+        wrapSafeTransfer(path[0], _msgSender(), ImpossibleLibrary.pairFor(factory, path[0], path[1]), amounts[0]);
         IImpossibleRouterExtension(routerExtension).swap(amounts, path);
         IWETH(WETH).withdraw(amounts[amounts.length - 1]);
         TransferHelper.safeTransferETH(to, amounts[amounts.length - 1]);
@@ -235,7 +236,7 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
         require(path[path.length - 1] == WETH, 'ImpossibleRouter: INVALID_PATH');
         amounts = ImpossibleLibrary.getAmountsOut(factory, amountIn, path);
         require(amounts[amounts.length - 1] >= amountOutMin, 'ImpossibleRouter: INSUFFICIENT_OUTPUT_AMOUNT');
-        wrapSafeTransfer(path[0], msg.sender, ImpossibleLibrary.pairFor(factory, path[0], path[1]), amounts[0]);
+        wrapSafeTransfer(path[0], _msgSender(), ImpossibleLibrary.pairFor(factory, path[0], path[1]), amounts[0]);
         IImpossibleRouterExtension(routerExtension).swap(amounts, path);
         IWETH(WETH).withdraw(amounts[amounts.length - 1]);
         TransferHelper.safeTransferETH(to, amounts[amounts.length - 1]);
@@ -264,7 +265,7 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
         IImpossibleRouterExtension(routerExtension).swap(amounts, path);
         unwrapSafeTransfer(path[path.length - 1], to, amountOut);
         // refund dust eth, if any
-        if (msg.value > amounts[0]) TransferHelper.safeTransferETH(msg.sender, msg.value - amounts[0]);
+        if (msg.value > amounts[0]) TransferHelper.safeTransferETH(_msgSender(), msg.value - amounts[0]);
     }
 
     /**
@@ -282,7 +283,7 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
         address to,
         uint256 deadline
     ) external virtual override ensure(deadline) nonReentrant {
-        wrapSafeTransfer(path[0], msg.sender, ImpossibleLibrary.pairFor(factory, path[0], path[1]), amountIn);
+        wrapSafeTransfer(path[0], _msgSender(), ImpossibleLibrary.pairFor(factory, path[0], path[1]), amountIn);
         IImpossibleRouterExtension(routerExtension).swapSupportingFeeOnTransferTokens(path);
         uint256 balance = IERC20(path[path.length - 1]).balanceOf(address(this));
         require(balance >= amountOutMin, 'ImpossibleRouter: INSUFFICIENT_OUTPUT_AMOUNT');
@@ -328,7 +329,7 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
         uint256 deadline
     ) external virtual override ensure(deadline) nonReentrant {
         require(path[path.length - 1] == WETH, 'ImpossibleRouter: INVALID_PATH');
-        wrapSafeTransfer(path[0], msg.sender, ImpossibleLibrary.pairFor(factory, path[0], path[1]), amountIn);
+        wrapSafeTransfer(path[0], _msgSender(), ImpossibleLibrary.pairFor(factory, path[0], path[1]), amountIn);
         IImpossibleRouterExtension(routerExtension).swapSupportingFeeOnTransferTokens(path);
         uint256 amountOut = IERC20(WETH).balanceOf(address(this));
         require(amountOut >= amountOutMin, 'ImpossibleRouter: INSUFFICIENT_OUTPUT_AMOUNT');
@@ -381,8 +382,8 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
             amountBMin
         );
         address pair = ImpossibleLibrary.pairFor(factory, tokenA, tokenB);
-        wrapSafeTransfer(tokenA, msg.sender, pair, amountA);
-        wrapSafeTransfer(tokenB, msg.sender, pair, amountB);
+        wrapSafeTransfer(tokenA, _msgSender(), pair, amountA);
+        wrapSafeTransfer(tokenB, _msgSender(), pair, amountB);
         liquidity = IImpossiblePair(pair).mint(to);
     }
 
@@ -428,11 +429,11 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
             amountETHMin
         );
         address pair = ImpossibleLibrary.pairFor(factory, token, WETH);
-        wrapSafeTransfer(token, msg.sender, pair, amountToken);
+        wrapSafeTransfer(token, _msgSender(), pair, amountToken);
         IWETH(WETH).deposit{value: amountETH}();
         assert(IWETH(WETH).transfer(pair, amountETH));
         liquidity = IImpossiblePair(pair).mint(to);
-        if (msg.value > amountETH) TransferHelper.safeTransferETH(msg.sender, msg.value - amountETH); // refund dust eth, if any
+        if (msg.value > amountETH) TransferHelper.safeTransferETH(_msgSender(), msg.value - amountETH); // refund dust eth, if any
     }
 
     /**
@@ -458,7 +459,7 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
         uint256 deadline
     ) public virtual override ensure(deadline) nonReentrant returns (uint256 amountA, uint256 amountB) {
         address pair = ImpossibleLibrary.pairFor(factory, tokenA, tokenB);
-        IImpossiblePair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
+        IImpossiblePair(pair).transferFrom(_msgSender(), pair, liquidity); // send liquidity to pair
         (amountA, amountB) = IImpossibleRouterExtension(routerExtension).removeLiquidity(
             tokenA,
             tokenB,
@@ -491,7 +492,7 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
         uint256 deadline
     ) public virtual override ensure(deadline) nonReentrant returns (uint256 amountToken, uint256 amountETH) {
         address pair = ImpossibleLibrary.pairFor(factory, token, WETH);
-        IImpossiblePair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
+        IImpossiblePair(pair).transferFrom(_msgSender(), pair, liquidity); // send liquidity to pair
         (amountToken, amountETH) = IImpossibleRouterExtension(routerExtension).removeLiquidity(
             token,
             WETH,
@@ -533,8 +534,8 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
         bytes32 s
     ) external virtual override returns (uint256 amountA, uint256 amountB) {
         address pair = ImpossibleLibrary.pairFor(factory, tokenA, tokenB);
-        uint256 value = approveMax ? uint256(-1) : liquidity;
-        IImpossiblePair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
+        uint256 value = approveMax ? type(uint256).max : liquidity;
+        IImpossiblePair(pair).permit(_msgSender(), address(this), value, deadline, v, r, s);
         return removeLiquidity(tokenA, tokenB, liquidity, amountAMin, amountBMin, to, deadline);
     }
 
@@ -564,8 +565,8 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
         bytes32 s
     ) external virtual override returns (uint256 amountToken, uint256 amountETH) {
         address pair = ImpossibleLibrary.pairFor(factory, token, WETH);
-        uint256 value = approveMax ? uint256(-1) : liquidity;
-        IImpossiblePair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
+        uint256 value = approveMax ? type(uint256).max : liquidity;
+        IImpossiblePair(pair).permit(_msgSender(), address(this), value, deadline, v, r, s);
         (amountToken, amountETH) = removeLiquidityETH(token, liquidity, amountTokenMin, amountETHMin, to, deadline);
     }
 
@@ -590,7 +591,7 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
         uint256 deadline
     ) public virtual override ensure(deadline) nonReentrant returns (uint256 amountETH) {
         address pair = ImpossibleLibrary.pairFor(factory, token, WETH);
-        IImpossiblePair(pair).transferFrom(msg.sender, pair, liquidity); // send liquidity to pair
+        IImpossiblePair(pair).transferFrom(_msgSender(), pair, liquidity); // send liquidity to pair
         (, amountETH) = IImpossibleRouterExtension(routerExtension).removeLiquidity(
             token,
             WETH,
@@ -629,8 +630,8 @@ contract ImpossibleRouter is IImpossibleRouter, ReentrancyGuard {
         bytes32 s
     ) external virtual override returns (uint256 amountETH) {
         address pair = ImpossibleLibrary.pairFor(factory, token, WETH);
-        uint256 value = approveMax ? uint256(-1) : liquidity;
-        IImpossiblePair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
+        uint256 value = approveMax ? type(uint256).max : liquidity;
+        IImpossiblePair(pair).permit(_msgSender(), address(this), value, deadline, v, r, s);
         amountETH = removeLiquidityETHSupportingFeeOnTransferTokens(
             token,
             liquidity,

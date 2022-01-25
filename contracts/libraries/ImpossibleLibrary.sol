@@ -37,17 +37,17 @@ library ImpossibleLibrary {
     ) internal pure returns (address pair) {
         (address token0, address token1) = sortTokens(tokenA, tokenB);
         pair = address(
-            uint256(
-                keccak256(
-                    abi.encodePacked(
-                        hex'ff',
-                        factory,
-                        keccak256(abi.encodePacked(token0, token1)),
-                        hex'44af417f4173c5e233fab14adb0d4835da35ecaf1f17b0458831e84a678be43d' // init code hash
+                bytes20(
+                    keccak256(
+                        abi.encodePacked(
+                            hex'ff',
+                            factory,
+                            keccak256(abi.encodePacked(token0, token1)),
+                            hex'44af417f4173c5e233fab14adb0d4835da35ecaf1f17b0458831e84a678be43d' // init code hash
+                        )
                     )
                 )
-            )
-        );
+            );
     }
 
     /**

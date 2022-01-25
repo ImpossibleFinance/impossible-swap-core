@@ -1,5 +1,5 @@
 /// SPDX-License-Identifier: GPL-3
-pragma solidity =0.7.6;
+pragma solidity ^0.8.0;
 
 import './ImpossibleERC20.sol';
 
@@ -448,8 +448,8 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
             _mint(address(0), MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens
         } else {
             liquidity = Math.min(
-                _reserve0 > 0 ? amount0.mul(_totalSupply) / _reserve0 : uint256(-1),
-                _reserve1 > 0 ? amount1.mul(_totalSupply) / _reserve1 : uint256(-1)
+                _reserve0 > 0 ? amount0.mul(_totalSupply) / _reserve0 : type(uint256).max,
+                _reserve1 > 0 ? amount1.mul(_totalSupply) / _reserve1 : type(uint256).max
             );
         }
         require(liquidity > 0, 'IF: INSUFFICIENT_LIQUIDITY_MINTED');

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3
-pragma solidity =0.7.6;
+pragma solidity ^0.8.0;
 
 import './libraries/SafeMath.sol';
 
@@ -97,7 +97,7 @@ contract ImpossibleERC20 is IImpossibleERC20 {
         address to,
         uint256 value
     ) external override returns (bool) {
-        if (allowance[from][msg.sender] != uint256(-1)) {
+        if (allowance[from][msg.sender] != type(uint256).max) {
             allowance[from][msg.sender] = allowance[from][msg.sender].sub(value);
         }
         _transfer(from, to, value);

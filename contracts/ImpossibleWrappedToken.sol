@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3
 
-pragma solidity =0.7.6;
+pragma solidity ^0.8.0;
 
 import './libraries/TransferHelper.sol';
 import './libraries/SafeMath.sol';
@@ -82,7 +82,7 @@ contract ImpossibleWrappedToken is IImpossibleWrappedToken, ReentrancyGuard {
         require(balanceOf[src] >= wad, '');
         require(dst != address(0x0), 'IF Wrapper: INVALID_DST');
 
-        if (src != msg.sender && allowance[src][msg.sender] != uint256(-1)) {
+        if (src != msg.sender && allowance[src][msg.sender] != type(uint256).max) {
             require(allowance[src][msg.sender] >= wad, 'ImpossibleWrapper: INSUFF_ALLOWANCE');
             allowance[src][msg.sender] -= wad;
         }
