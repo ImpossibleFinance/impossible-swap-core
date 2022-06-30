@@ -259,7 +259,7 @@ contract ImpossiblePair is IImpossiblePair, ImpossibleERC20, ReentrancyGuard {
      @param _newDelay The new time delay in BSC blocks (3 second block time)
     */
     function updateDelay(uint256 _newDelay) external onlyGovernance {
-        require(_newDelay >= THIRTY_MINS && delay <= TWO_WEEKS, 'IF: INVALID_DELAY');
+        require(_newDelay >= THIRTY_MINS && _newDelay <= TWO_WEEKS, 'IF: INVALID_DELAY');
         uint256 _oldDelay = delay;
         delay = _newDelay;
         emit updatedDelay(_oldDelay, _newDelay);
