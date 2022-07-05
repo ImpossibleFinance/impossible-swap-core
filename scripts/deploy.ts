@@ -4,10 +4,8 @@ import { txParams } from './utils/transactionHelpers'
 
 async function deploy(contractName: string, args: any[]) :Promise<string> {
   const ethParams = await txParams()
-  const signer = (await hre.ethers.getSigners())[0]
   const ContractFactory = await hre.ethers.getContractFactory(contractName)
   const contract = await ContractFactory.deploy(
-    // governance address
     ...args,
     {
       gasPrice: ethParams.txGasPrice,
@@ -19,7 +17,6 @@ async function deploy(contractName: string, args: any[]) :Promise<string> {
 }
 
 export async function main(): Promise<void> {
-  const ethParams = await txParams()
   const signer = (await hre.ethers.getSigners())[0]
   console.log('signer and gov address:', signer.address)
 
